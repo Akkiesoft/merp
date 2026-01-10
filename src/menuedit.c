@@ -116,7 +116,7 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         
         if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_SEP)
         {
-            gtk_tree_store_set (store, &iter, 0, "Separator", 1, icon, 2, id ? id : "NO ID", 3, TRUE, -1);
+            gtk_tree_store_set (store, &iter, 0, "----", 1, NULL, 2, "", -1);
         }
         else
         {
@@ -151,7 +151,6 @@ int main (int argc, char *argv[])
 {
     GtkBuilder *builder;
     GtkCellRenderer *renderer;
-    GtkTreeIter iter;
     MenuCache *menu_cache;
     MenuCacheDir *dir;
 
@@ -184,13 +183,11 @@ int main (int argc, char *argv[])
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     
     store = gtk_tree_store_new (4, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN);
-    gtk_tree_store_append (store, &iter, NULL);
-    gtk_tree_store_set (store, &iter, 0, "Root", -1);
 
     renderer = gtk_cell_renderer_toggle_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
                                                -1,      
-                                               "Visible",  
+                                               "Visible",
                                                renderer,
                                                "active", 3,
                                                NULL);
@@ -198,7 +195,7 @@ int main (int argc, char *argv[])
     renderer = gtk_cell_renderer_pixbuf_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
                                                -1,      
-                                               "Icon",  
+                                               "Icon",
                                                renderer,
                                                "pixbuf", 1,
                                                NULL);
@@ -206,7 +203,7 @@ int main (int argc, char *argv[])
     renderer = gtk_cell_renderer_text_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
                                                -1,      
-                                               "Name",  
+                                               "Name",
                                                renderer,
                                                "text", 0,
                                                NULL);
@@ -214,12 +211,12 @@ int main (int argc, char *argv[])
     renderer = gtk_cell_renderer_text_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
                                                -1,      
-                                               "ID",  
+                                               "ID",
                                                renderer,
                                                "text", 2,
                                                NULL);
                                                
-    load_menu (dir, &iter);
+    load_menu (dir, NULL);
     gtk_tree_view_set_model (GTK_TREE_VIEW (menu_tv), GTK_TREE_MODEL (store));
     gtk_widget_show_all (main_dlg);
 

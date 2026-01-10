@@ -28,6 +28,8 @@
                   <object class="GtkTreeView" id="tv_menu">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="headers-visible">False</property>
+                    <property name="headers-clickable">False</property>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection"/>
                     </child>
