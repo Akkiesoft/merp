@@ -91,6 +91,7 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         id = menu_cache_item_get_id (item);
         icon_name = menu_cache_item_get_icon (item);
         if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_APP) vis = menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE);
+        else if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_DIR) vis = menu_cache_dir_is_visible (MENU_CACHE_DIR (item));
         else vis = TRUE;
         
         gtk_tree_store_append (store, &iter, parent);
