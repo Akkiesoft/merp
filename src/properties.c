@@ -42,10 +42,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Global data                                                                */
 /*----------------------------------------------------------------------------*/
 
-static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal;
+static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal, *cb_category;
 
 static GtkListStore *items;
 static GtkTreeModel *sorted;
+static GtkListStore *categories;
 
 static char *icon_name;
 
@@ -203,9 +204,56 @@ void show_properties_dialog (MenuCacheItem *item)
     img_icon = (GtkWidget *) gtk_builder_get_object (builder, "img_icon");
     sw_notif = (GtkWidget *) gtk_builder_get_object (builder, "sw_notif");
     sw_terminal = (GtkWidget *) gtk_builder_get_object (builder, "sw_terminal");
+    cb_category = (GtkWidget *) gtk_builder_get_object (builder, "cb_category");
 
     icon_name = g_strdup (menu_cache_item_get_icon (item));
     show_icon ();
+
+    GtkTreeIter entry;
+    categories = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "AudioVideo", 1, _("Multimedia"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Development", 1, _("Programming"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Education", 1, _("Education"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Game", 1, _("Games"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Graphics", 1, _("Graphics"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Network", 1, _("Internet"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Office", 1, _("Office"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Science", 1, _("Science"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Settings", 1, _("Preferences"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "System", 1, _("System Tools"), -1);
+    gtk_list_store_append (categories, &entry);
+    gtk_list_store_set (categories, &entry, 0, "Utility", 1, _("Accessories"), -1);
+
+    gtk_combo_box_set_model (GTK_COMBO_BOX (cb_category), GTK_TREE_MODEL (categories));
+    GtkCellRenderer *rend = gtk_cell_renderer_text_new ();
+    gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (cb_category), rend, FALSE);
+    gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", 1);
+
+    MenuCacheDir *parent = menu_cache_item_dup_parent (item);
+    path = menu_cache_dir_make_path (parent);
+
+    gtk_tree_model_get_iter_first (GTK_TREE_MODEL (categories), &entry);
+    while (1)
+    {
+        gtk_tree_model_get (GTK_TREE_MODEL (categories), &entry, 0, &str, -1);
+        if (strstr (path, str))
+            gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), &entry);
+        g_free (str);
+        if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (categories), &entry)) break;
+    }
+
+    g_free (path);
+    menu_cache_item_unref (MENU_CACHE_ITEM (parent));
 
     gtk_label_set_text (GTK_LABEL (gtk_builder_get_object (builder, "lbl_file")), menu_cache_item_get_file_basename (item));
     gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
@@ -221,14 +269,6 @@ void show_properties_dialog (MenuCacheItem *item)
     path = menu_cache_item_get_file_path (item);
     gtk_label_set_text (GTK_LABEL (lbl_target), path);
     g_free (path);
-
-    MenuCacheDir *parent = menu_cache_item_dup_parent (item);
-    path = menu_cache_dir_make_path (parent);
-    str = g_strdup_printf ("menu:/%s", path);
-    gtk_label_set_text (GTK_LABEL (gtk_builder_get_object (builder, "lbl_loc")), str);
-    g_free (str);
-    g_free (path);
-    menu_cache_item_unref (MENU_CACHE_ITEM (parent));
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), lbl_target);
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
@@ -316,6 +356,18 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     update |= update_string_if_changed (kf, "Path", entry_dir);
     update |= update_bool_if_changed (kf, "StartupNotify", sw_notif);
     update |= update_bool_if_changed (kf, "Terminal", sw_terminal);
+
+    const char *cat;
+    GtkTreeIter iter;
+    if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
+        gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, 0, &cat, -1);
+    str = g_key_file_get_string (kf, "Desktop Entry", "Categories", NULL);
+    if (g_strcmp0 (cat, str))
+    {
+        g_key_file_set_string (kf, "Desktop Entry", "Categories", cat);
+        update = TRUE;
+    }
+    g_free (str);
 
     str = g_key_file_get_string (kf, "Desktop Entry", "Icon", NULL);
     if (g_strcmp0 (icon_name, str))
