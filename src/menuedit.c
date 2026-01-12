@@ -78,7 +78,7 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     const char *name, *id, *icon_name;
     gboolean vis;
     
-    int scale = 1; //gtk_widget_get_scale_factor (main_dlg);
+    int scale = gtk_widget_get_scale_factor (main_dlg);
     
     if (!menu_cache_dir_is_visible (dir)) return;
 
@@ -254,6 +254,7 @@ int main (int argc, char *argv[])
 
     g_signal_connect (main_dlg, "delete_event", G_CALLBACK (close_prog), NULL);
     g_signal_connect (close_btn, "clicked", G_CALLBACK (close_prog), NULL);
+    g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (tv_button_press), NULL);
     
     menu_cache = menu_cache_lookup ("applications.menu+hidden");
     menu_cache_add_reload_notify (menu_cache, NULL, NULL);
@@ -269,16 +270,19 @@ int main (int argc, char *argv[])
 
     renderer = gtk_cell_renderer_pixbuf_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 1, "Icon", renderer, "pixbuf", ITEM_ICON, NULL);
+    GValue val = G_VALUE_INIT;
+    g_value_init (&val, G_TYPE_INT);
+    g_value_set_int (&val, gtk_widget_get_scale_factor (main_dlg));
+    g_object_set_property (G_OBJECT (renderer), "scale", &val);
 
     renderer = gtk_cell_renderer_text_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 2, "Name", renderer, "text", ITEM_NAME, NULL);
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 3, "ID", renderer, "text", ITEM_ID, NULL);
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 4, "Type", renderer, "text", ITEM_TYPE, NULL);
 
-    g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (tv_button_press), NULL);
-
     load_menu (dir, NULL);
     gtk_tree_view_set_model (GTK_TREE_VIEW (menu_tv), GTK_TREE_MODEL (store));
+
     gtk_widget_show_all (main_dlg);
 
     gtk_main ();
