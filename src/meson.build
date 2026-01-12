@@ -1,5 +1,6 @@
 sources = files (
-    'menuedit.c'
+    'menuedit.c',
+    'properties.c'
 )
 
 add_global_arguments('-Wno-unused-result', language : 'c')

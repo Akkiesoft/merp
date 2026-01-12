@@ -39,8 +39,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <unistd.h>
 
 #include <gtk/gtk.h>
+#include <glib/gi18n.h>
+#include <libintl.h>
 
 #include <menu-cache.h>
+
+extern void show_properties_dialog (MenuCacheItem *item);
+
 
 /*----------------------------------------------------------------------------*/
 /* Macros                                                                     */
@@ -116,11 +121,11 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         
         if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_SEP)
         {
-            gtk_tree_store_set (store, &iter, 0, "----", 1, NULL, 2, "", -1);
+            gtk_tree_store_set (store, &iter, 0, "----", 1, NULL, 2, "", 4, item, -1);
         }
         else
         {
-            gtk_tree_store_set (store, &iter, 0, name ? name : "NO NAME", 1, icon, 2, id ? id : "NO ID", 3, vis, -1);
+            gtk_tree_store_set (store, &iter, 0, name ? name : "NO NAME", 1, icon, 2, id ? id : "NO ID", 3, vis, 4, item, -1);
         }
 
         if ((menu_cache_item_get_type (item) != MENU_CACHE_TYPE_APP) || (menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE)))
@@ -133,10 +138,46 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     g_slist_free (children);
 }
 
-
 /*----------------------------------------------------------------------------*/
 /* Handlers for main window user interaction                                  */
 /*----------------------------------------------------------------------------*/
+
+static void handle_menu_open (GtkWidget *widget, gpointer user_data)
+{
+     show_properties_dialog (user_data);
+}
+
+static gboolean tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
+{
+    GtkWidget *menu, *mi;
+    GtkTreeModel *mod;
+    GtkTreePath *path;
+    GtkTreeIter iter;
+    MenuCacheItem *cacheitem;
+
+    if (event.type == GDK_BUTTON_PRESS && event.button == 3)
+    {
+        gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (self), event.x, event.y, &path, NULL, NULL, NULL);
+        if (path)
+        {
+            mod = gtk_tree_view_get_model (GTK_TREE_VIEW (self));
+            gtk_tree_model_get_iter (mod, &iter, path);
+            gtk_tree_model_get (mod, &iter, 4, &cacheitem, -1);
+
+            menu = gtk_menu_new ();
+
+            mi = gtk_menu_item_new_with_label (_("Edit item"));
+            g_signal_connect (mi, "activate", G_CALLBACK (handle_menu_open), cacheitem);
+            gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+
+            gtk_widget_show_all (menu);
+            gtk_menu_popup_at_pointer (GTK_MENU (menu), (GdkEvent *) &event);
+        }
+        return TRUE;
+    }
+
+    return FALSE;
+}
 
 static void close_prog (GtkButton* btn, gpointer ptr)
 {
@@ -182,7 +223,7 @@ int main (int argc, char *argv[])
     dir = NULL;
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     
-    store = gtk_tree_store_new (4, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN);
+    store = gtk_tree_store_new (5, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER);
 
     renderer = gtk_cell_renderer_toggle_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
@@ -215,7 +256,9 @@ int main (int argc, char *argv[])
                                                renderer,
                                                "text", 2,
                                                NULL);
-                                               
+
+    g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (tv_button_press), NULL);
+
     load_menu (dir, NULL);
     gtk_tree_view_set_model (GTK_TREE_VIEW (menu_tv), GTK_TREE_MODEL (store));
     gtk_widget_show_all (main_dlg);
