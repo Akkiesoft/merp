@@ -62,6 +62,10 @@ extern void show_properties_dialog (MenuCacheItem *item);
 static GtkWidget *main_dlg, *menu_tv, *close_btn;
 static GtkTreeStore *store;
 
+MenuCache *menu_cache;
+MenuCacheDir *dir;
+
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -179,6 +183,46 @@ static gboolean tv_button_press (GtkWidget *self, GdkEventButton event, gpointer
     return FALSE;
 }
 
+static void visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data)
+{
+    GtkTreeIter iter;
+    GtkTreeModel *model;
+    MenuCacheItem *cacheitem;
+    gchar *path, *str;
+    GKeyFile *kf;
+    gsize len;
+
+    gboolean state = gtk_cell_renderer_toggle_get_active (cell);
+
+    model = gtk_tree_view_get_model (GTK_TREE_VIEW (menu_tv));
+    gtk_tree_model_get_iter_from_string (model, &iter, pat);
+    gtk_tree_model_get (model, &iter, 4, &cacheitem, -1);
+    gtk_tree_store_set (GTK_TREE_STORE (model), &iter, 3, 1 - gtk_cell_renderer_toggle_get_active (cell), -1);
+
+    kf = g_key_file_new ();
+    path = menu_cache_item_get_file_path (cacheitem);
+    g_key_file_load_from_file (kf, path, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+
+    g_key_file_set_boolean (kf, "Desktop Entry", "NoDisplay", state);
+
+    str = g_path_get_basename (path);
+    g_free (path);
+    path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", str, NULL);
+    g_free (str);
+
+    str = g_path_get_dirname (path);
+    g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+    g_free (str);
+
+    str = g_key_file_to_data (kf, &len, NULL);
+    g_file_set_contents (path, str, len, NULL);
+    g_free (str);
+
+    g_free (path);
+
+    g_key_file_free (kf);
+}
+
 static void close_prog (GtkButton* btn, gpointer ptr)
 {
     gtk_main_quit ();
@@ -192,8 +236,6 @@ int main (int argc, char *argv[])
 {
     GtkBuilder *builder;
     GtkCellRenderer *renderer;
-    MenuCache *menu_cache;
-    MenuCacheDir *dir;
 
 #ifdef ENABLE_NLS
     setlocale (LC_ALL, "");
@@ -232,7 +274,8 @@ int main (int argc, char *argv[])
                                                renderer,
                                                "active", 3,
                                                NULL);
-                                               
+    g_signal_connect (renderer, "toggled", G_CALLBACK (visible_toggled), NULL);
+
     renderer = gtk_cell_renderer_pixbuf_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
                                                -1,      
