@@ -137,6 +137,12 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     g_slist_free (children);
 }
 
+void reload_tree (MenuCache *mc, gpointer)
+{
+    gtk_tree_store_clear (store);
+    load_menu (dir, NULL);
+}
+
 /*----------------------------------------------------------------------------*/
 /* Handlers for main window user interaction                                  */
 /*----------------------------------------------------------------------------*/
@@ -257,7 +263,7 @@ int main (int argc, char *argv[])
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (tv_button_press), NULL);
     
     menu_cache = menu_cache_lookup ("applications.menu+hidden");
-    menu_cache_add_reload_notify (menu_cache, NULL, NULL);
+    menu_cache_add_reload_notify (menu_cache, reload_tree, NULL);
     
     dir = NULL;
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);

@@ -50,6 +50,8 @@ static GtkListStore *categories;
 
 static char *icon_name;
 
+extern MenuCache *menu_cache;
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -395,6 +397,8 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
         g_free (str);
 
         g_free (path);
+
+        menu_cache_reload (menu_cache);
     }
     g_key_file_free (kf);
 
