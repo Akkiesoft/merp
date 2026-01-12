@@ -1,5 +1,5 @@
-/*
-Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+/*============================================================================
+Copyright (c) 2026 Raspberry Pi
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -23,33 +23,27 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+============================================================================*/
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#define _GNU_SOURCE
-#include <string.h>
-#include <math.h>
-#include <ctype.h>
-#include <stdlib.h>
 #include <fcntl.h>
-#include <dirent.h>
-#include <unistd.h>
 
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
-#include <libintl.h>
-
+#include <locale.h>
 #include <menu-cache.h>
 
 extern void show_properties_dialog (MenuCacheItem *item);
 
-
 /*----------------------------------------------------------------------------*/
 /* Macros                                                                     */
 /*----------------------------------------------------------------------------*/
+
+#define ITEM_NAME       0
+#define ITEM_ICON       1
+#define ITEM_ID         2
+#define ITEM_VISIBLE    3
+#define ITEM_POINTER    4
+#define ITEM_TYPE       5
 
 #define ICON_SIZE 24
 
@@ -62,9 +56,10 @@ extern void show_properties_dialog (MenuCacheItem *item);
 static GtkWidget *main_dlg, *menu_tv, *close_btn;
 static GtkTreeStore *store;
 
+/* Cache globals */
+
 MenuCache *menu_cache;
 MenuCacheDir *dir;
-
 
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
@@ -125,11 +120,11 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         
         if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_SEP)
         {
-            gtk_tree_store_set (store, &iter, 0, "----", 1, NULL, 2, "", 4, item, -1);
+            gtk_tree_store_set (store, &iter, ITEM_NAME, "----", ITEM_ICON, NULL, ITEM_ID, "", ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), -1);
         }
         else
         {
-            gtk_tree_store_set (store, &iter, 0, name ? name : "NO NAME", 1, icon, 2, id ? id : "NO ID", 3, vis, 4, item, -1);
+            gtk_tree_store_set (store, &iter, ITEM_NAME, name ? name : "NO NAME", ITEM_ICON, icon, ITEM_ID, id ? id : "NO ID", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), -1);
         }
 
         if ((menu_cache_item_get_type (item) != MENU_CACHE_TYPE_APP) || (menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE)))
@@ -191,41 +186,46 @@ static void visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer u
     gchar *path, *str;
     GKeyFile *kf;
     gsize len;
+    int type;
 
     gboolean state = gtk_cell_renderer_toggle_get_active (cell);
 
     model = gtk_tree_view_get_model (GTK_TREE_VIEW (menu_tv));
     gtk_tree_model_get_iter_from_string (model, &iter, pat);
-    gtk_tree_model_get (model, &iter, 4, &cacheitem, -1);
+    gtk_tree_model_get (model, &iter, 4, &cacheitem, 5, &type, -1);
     gtk_tree_store_set (GTK_TREE_STORE (model), &iter, 3, 1 - gtk_cell_renderer_toggle_get_active (cell), -1);
 
-    kf = g_key_file_new ();
-    path = menu_cache_item_get_file_path (cacheitem);
-    g_key_file_load_from_file (kf, path, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+    if (type == MENU_CACHE_TYPE_APP || type == MENU_CACHE_TYPE_DIR)
+    {
+        kf = g_key_file_new ();
+        path = menu_cache_item_get_file_path (cacheitem);
+        g_key_file_load_from_file (kf, path, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
 
-    g_key_file_set_boolean (kf, "Desktop Entry", "NoDisplay", state);
+        g_key_file_set_boolean (kf, "Desktop Entry", "NoDisplay", state);
 
-    str = g_path_get_basename (path);
-    g_free (path);
-    path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", str, NULL);
-    g_free (str);
+        str = g_path_get_basename (path);
+        g_free (path);
+        path = g_build_filename (g_get_home_dir (), ".local", "share", type == MENU_CACHE_TYPE_APP ? "applications" : "desktop-directories", str, NULL);
+        g_free (str);
 
-    str = g_path_get_dirname (path);
-    g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
-    g_free (str);
+        str = g_path_get_dirname (path);
+        g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+        g_free (str);
 
-    str = g_key_file_to_data (kf, &len, NULL);
-    g_file_set_contents (path, str, len, NULL);
-    g_free (str);
+        str = g_key_file_to_data (kf, &len, NULL);
+        g_file_set_contents (path, str, len, NULL);
+        g_free (str);
 
-    g_free (path);
+        g_free (path);
 
-    g_key_file_free (kf);
+        g_key_file_free (kf);
+    }
 }
 
-static void close_prog (GtkButton* btn, gpointer ptr)
+static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
 {
     gtk_main_quit ();
+    return TRUE;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -237,68 +237,43 @@ int main (int argc, char *argv[])
     GtkBuilder *builder;
     GtkCellRenderer *renderer;
 
-#ifdef ENABLE_NLS
     setlocale (LC_ALL, "");
     bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
     bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
     textdomain (GETTEXT_PACKAGE);
-#endif
 
     // GTK setup
     gtk_init (&argc, &argv);
 
     // build the UI
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
-
     main_dlg = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
     close_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_ok");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
-
     g_object_unref (builder);
 
     g_signal_connect (main_dlg, "delete_event", G_CALLBACK (close_prog), NULL);
+    g_signal_connect (close_btn, "clicked", G_CALLBACK (close_prog), NULL);
     
-    gboolean need_prefix = (g_getenv ("XDG_MENU_PREFIX") == NULL);
-    menu_cache = menu_cache_lookup (need_prefix ? "lxde-applications.menu+hidden" : "applications.menu+hidden");
+    menu_cache = menu_cache_lookup ("applications.menu+hidden");
     menu_cache_add_reload_notify (menu_cache, NULL, NULL);
     
     dir = NULL;
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     
-    store = gtk_tree_store_new (5, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER);
+    store = gtk_tree_store_new (6, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT);
 
     renderer = gtk_cell_renderer_toggle_new ();
-    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
-                                               -1,      
-                                               "Visible",
-                                               renderer,
-                                               "active", 3,
-                                               NULL);
+    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 0, "Visible", renderer, "active", ITEM_VISIBLE, NULL);
     g_signal_connect (renderer, "toggled", G_CALLBACK (visible_toggled), NULL);
 
     renderer = gtk_cell_renderer_pixbuf_new ();
-    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
-                                               -1,      
-                                               "Icon",
-                                               renderer,
-                                               "pixbuf", 1,
-                                               NULL);
+    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 1, "Icon", renderer, "pixbuf", ITEM_ICON, NULL);
 
     renderer = gtk_cell_renderer_text_new ();
-    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
-                                               -1,      
-                                               "Name",
-                                               renderer,
-                                               "text", 0,
-                                               NULL);
-
-    renderer = gtk_cell_renderer_text_new ();
-    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv),
-                                               -1,      
-                                               "ID",
-                                               renderer,
-                                               "text", 2,
-                                               NULL);
+    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 2, "Name", renderer, "text", ITEM_NAME, NULL);
+    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 3, "ID", renderer, "text", ITEM_ID, NULL);
+    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 4, "Type", renderer, "text", ITEM_TYPE, NULL);
 
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (tv_button_press), NULL);
 
