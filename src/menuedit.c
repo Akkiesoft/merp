@@ -60,6 +60,8 @@ static GtkTreeStore *store;
 
 MenuCache *menu_cache;
 
+gboolean just_viz = FALSE;
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -75,13 +77,11 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     GdkPixbuf *icon;
     MenuCacheItem* item;
     const char *name, *id, *icon_name;
-    char *markup;
+    char *markup, *esc;
     gboolean vis;
     
     int scale = gtk_widget_get_scale_factor (main_dlg);
     
-    if (!menu_cache_dir_is_visible (dir)) return;
-
     children = menu_cache_dir_list_children (dir);
 
     for (l = children; l; l = l->next)
@@ -125,15 +125,20 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                 gtk_tree_store_set (store, &iter, ITEM_NAME, "----", ITEM_ICON, NULL, ITEM_ID, "", ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), -1);
                 break;
             case MENU_CACHE_TYPE_APP :
-                if (!vis) markup = g_strdup_printf ("<span foreground=\"grey\">%s</span>", name ? name : "<unnamed>");
+                esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
+                if (!vis) markup = g_strdup_printf ("<span foreground=\"grey\">%s</span>", esc);
                 else markup = g_strdup (name ? name : "<unnamed>");
                 gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id ? id : "NO ID", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), -1);
                 g_free (markup);
+                g_free (esc);
                 break;
             case MENU_CACHE_TYPE_DIR :
-                markup = g_strdup_printf ("<b>%s</b>", name);
+                esc = g_markup_escape_text (name, -1);
+                if (!vis) markup = g_strdup_printf ("<span foreground=\"grey\">%s</span>", esc);
+                else markup = g_strdup_printf ("<b>%s</b>", esc);
                 gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id ? id : "NO ID", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), -1);
                 g_free (markup);
+                g_free (esc);
                 break;
             default: break;
         }
@@ -151,6 +156,13 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
 void reload_tree (MenuCache *mc, gpointer)
 {
     MenuCacheDir *dir;
+
+    if (just_viz)
+    {
+        just_viz = FALSE;
+        return;
+    }
+
     dir = NULL;
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     gtk_tree_store_clear (store);
@@ -239,6 +251,8 @@ static void visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer u
         g_free (path);
 
         g_key_file_free (kf);
+
+        if (type == MENU_CACHE_TYPE_APP) just_viz = TRUE;
     }
 }
 
@@ -298,8 +312,8 @@ int main (int argc, char *argv[])
 
     renderer = gtk_cell_renderer_text_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 2, "Name", renderer, "markup", ITEM_NAME, NULL);
-    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 3, "ID", renderer, "text", ITEM_ID, NULL);
-    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 4, "Type", renderer, "text", ITEM_TYPE, NULL);
+    //gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 3, "ID", renderer, "text", ITEM_ID, NULL);
+    //gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 4, "Type", renderer, "text", ITEM_TYPE, NULL);
 
     load_menu (dir, NULL);
     gtk_tree_view_set_model (GTK_TREE_VIEW (menu_tv), GTK_TREE_MODEL (store));
