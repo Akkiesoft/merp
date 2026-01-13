@@ -207,6 +207,8 @@ static gboolean tv_button_press (GtkWidget *self, GdkEventButton event, gpointer
             gtk_tree_model_get_iter (mod, &iter, path);
             gtk_tree_model_get (mod, &iter, 4, &cacheitem, -1);
 
+            if (menu_cache_item_get_type (cacheitem) != MENU_CACHE_TYPE_APP) return FALSE;
+
             menu = gtk_menu_new ();
 
             mi = gtk_menu_item_new_with_label (_("Edit item"));
