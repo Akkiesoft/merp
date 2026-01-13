@@ -59,7 +59,6 @@ static GtkTreeStore *store;
 /* Cache globals */
 
 MenuCache *menu_cache;
-MenuCacheDir *dir;
 
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
@@ -140,6 +139,9 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
 
 void reload_tree (MenuCache *mc, gpointer)
 {
+    MenuCacheDir *dir;
+    dir = NULL;
+    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     gtk_tree_store_clear (store);
     load_menu (dir, NULL);
 }
@@ -243,6 +245,7 @@ int main (int argc, char *argv[])
 {
     GtkBuilder *builder;
     GtkCellRenderer *renderer;
+    MenuCacheDir *dir;
 
     setlocale (LC_ALL, "");
     bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
