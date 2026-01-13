@@ -46,7 +46,7 @@ static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, 
 
 static GtkListStore *items;
 static GtkTreeModel *sorted;
-static GtkListStore *categories;
+static GtkTreeModelSort *categories;
 
 static char *icon_name;
 
@@ -212,36 +212,39 @@ void show_properties_dialog (MenuCacheItem *item)
     show_icon ();
 
     GtkTreeIter entry;
-    categories = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Multimedia", 1, _("Sound & Video"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Development", 1, _("Programming"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Education", 1, _("Education"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Games", 1, _("Games"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Graphics", 1, _("Graphics"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Help", 1, _("Help"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Internet", 1, _("Internet"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Office", 1, _("Office"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Science", 1, _("Science"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "DesktopSettings", 1, _("Preferences"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "System", 1, _("System Tools"), -1);
-    gtk_list_store_append (categories, &entry);
-    gtk_list_store_set (categories, &entry, 0, "Accessories", 1, _("Accessories"), -1);
+    GtkListStore *cats = gtk_list_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "AudioVideo", 1, "Multimedia", 2, _("Sound & Video"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Development", 1, "Development", 2, _("Programming"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Education", 1, "Education", 2, _("Education"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Game", 1, "Games", 2, _("Games"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Graphics", 1, "Graphics", 2, _("Graphics"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Help", 1, "Help", 2, _("Help"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Network", 1, "Internet", 2, _("Internet"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Office", 1, "Office", 2, _("Office"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Science", 1, "Science", 2, _("Science"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Settings", 1, "DesktopSettings", 2, _("Preferences"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "System", 1, "System", 2, _("System Tools"), -1);
+    gtk_list_store_append (cats, &entry);
+    gtk_list_store_set (cats, &entry, 0, "Utility", 1, "Accessories", 2, _("Accessories"), -1);
+
+    categories = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (cats)));
+    gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), 2, GTK_SORT_ASCENDING);
 
     gtk_combo_box_set_model (GTK_COMBO_BOX (cb_category), GTK_TREE_MODEL (categories));
     GtkCellRenderer *rend = gtk_cell_renderer_text_new ();
     gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (cb_category), rend, FALSE);
-    gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", 1);
+    gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", 2);
 
     MenuCacheDir *parent = menu_cache_item_dup_parent (item);
     path = menu_cache_dir_make_path (parent);
@@ -249,7 +252,7 @@ void show_properties_dialog (MenuCacheItem *item)
     gtk_tree_model_get_iter_first (GTK_TREE_MODEL (categories), &entry);
     while (1)
     {
-        gtk_tree_model_get (GTK_TREE_MODEL (categories), &entry, 0, &str, -1);
+        gtk_tree_model_get (GTK_TREE_MODEL (categories), &entry, 1, &str, -1);
         if (strstr (path, str))
             gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), &entry);
         g_free (str);
