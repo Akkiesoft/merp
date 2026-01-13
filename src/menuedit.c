@@ -61,12 +61,25 @@ static GtkTreeStore *store;
 
 MenuCache *menu_cache;
 
+/* Scaling factor */
+
+int scale;
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
 
+static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent);
+static void reload_tree (MenuCache *mc, gpointer);
+static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
+static void expand_row (gpointer data, gpointer user_data);
+static void handle_menu_open (GtkWidget *widget, gpointer user_data);
+static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
+static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
+static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+
 /*----------------------------------------------------------------------------*/
-/* Helpers                                                                    */
+/* Loading menu cache                                                         */
 /*----------------------------------------------------------------------------*/
 
 static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
@@ -75,27 +88,35 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     GtkTreeIter iter;
     GdkPixbuf *icon;
     MenuCacheItem* item;
+    MenuCacheType type;
     const char *name, *id, *icon_name;
     char *markup, *esc;
     gboolean vis;
-    
-    int scale = gtk_widget_get_scale_factor (main_dlg);
-    
+
     children = menu_cache_dir_list_children (dir);
     if (!children) return FALSE;
 
     for (l = children; l; l = l->next)
     {
         item = MENU_CACHE_ITEM (l->data);
+
         name = menu_cache_item_get_name (item);
         id = menu_cache_item_get_id (item);
         icon_name = menu_cache_item_get_icon (item);
-        if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_APP) vis = menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE);
-        else if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_DIR) vis = menu_cache_dir_is_visible (MENU_CACHE_DIR (item));
-        else vis = TRUE;
-        
+        type = menu_cache_item_get_type (item);
+
+        switch (type)
+        {
+            case MENU_CACHE_TYPE_APP :  vis = menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE);
+                                        break;
+            case MENU_CACHE_TYPE_DIR :  vis = menu_cache_dir_is_visible (MENU_CACHE_DIR (item));
+                                        break;
+            default :                   vis = TRUE;
+                                        break;
+        }
+
         gtk_tree_store_append (store, &iter, parent);
-        
+
         icon = NULL;
         if (icon_name)
         {
@@ -116,31 +137,35 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
             }
         }
         if (!icon)
-            icon = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), "application-x-executable",
+            icon = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), type == MENU_CACHE_TYPE_DIR ? "folder" : "application-x-executable",
                 ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
-        
-        switch (menu_cache_item_get_type (item))
+
+        switch (type)
         {
             case MENU_CACHE_TYPE_SEP :
-                gtk_tree_store_set (store, &iter, ITEM_NAME, "----", ITEM_ICON, NULL, ITEM_ID, "", ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, FALSE, -1);
+                gtk_tree_store_set (store, &iter, ITEM_NAME, "----", ITEM_ICON, NULL, ITEM_ID, "", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, FALSE, -1);
                 break;
+
             case MENU_CACHE_TYPE_APP :
                 esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
                 if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\">%s</span>", esc);
-                else markup = g_strdup (name ? name : "<unnamed>");
-                gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id ? id : "NO ID", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, TRUE, -1);
+                else markup = g_strdup (esc);
+                gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, TRUE, -1);
                 g_free (markup);
                 g_free (esc);
                 break;
+
             case MENU_CACHE_TYPE_DIR :
-                esc = g_markup_escape_text (name, -1);
+                esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
                 if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\"><b>%s</b></span>", esc);
                 else markup = g_strdup_printf ("<b>%s</b>", esc);
-                gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id ? id : "NO ID", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, FALSE,  -1);
+                gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, FALSE, -1);
                 g_free (markup);
                 g_free (esc);
                 break;
-            default: break;
+
+            default:
+                break;
         }
 
         /* process subentries */
@@ -152,10 +177,35 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     }
 
     g_slist_free (children);
+
     return TRUE;
 }
 
-gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+/*----------------------------------------------------------------------------*/
+/* Reloading on cache changes                                                 */
+/*----------------------------------------------------------------------------*/
+
+static void reload_tree (MenuCache *mc, gpointer)
+{
+    MenuCacheDir *dir;
+    GList *expands = NULL;
+
+    // store the current expanders
+    gtk_tree_model_foreach (GTK_TREE_MODEL (store), store_expands, &expands);
+
+    // reload cache and tree view
+    dir = NULL;
+    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
+    gtk_tree_store_clear (store);
+    load_menu (dir, NULL);
+    menu_cache_item_unref ((MenuCacheItem *) dir);
+
+    // restore the expanders
+    g_list_foreach (expands, expand_row, NULL);
+    g_list_free_full (expands, (GDestroyNotify) gtk_tree_path_free);
+}
+
+static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
     GList **expands = (GList **) data;
     if (gtk_tree_view_row_expanded (GTK_TREE_VIEW (menu_tv), path))
@@ -163,26 +213,9 @@ gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *ite
     return FALSE;
 }
 
-void expand_row (gpointer data, gpointer user_data)
+static void expand_row (gpointer data, gpointer user_data)
 {
-    GtkTreePath *path = (GtkTreePath *) data;
-    gtk_tree_view_expand_row (GTK_TREE_VIEW (menu_tv), path, FALSE);
-}
-
-void reload_tree (MenuCache *mc, gpointer)
-{
-    MenuCacheDir *dir;
-    GList *expands = NULL;
-
-    gtk_tree_model_foreach (GTK_TREE_MODEL (store), store_expands, &expands);
-
-    dir = NULL;
-    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
-    gtk_tree_store_clear (store);
-    load_menu (dir, NULL);
-
-    g_list_foreach (expands, expand_row, NULL);
-    g_list_free_full (expands, (GDestroyNotify) gtk_tree_path_free);
+    gtk_tree_view_expand_row (GTK_TREE_VIEW (menu_tv), (GtkTreePath *) data, FALSE);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -191,27 +224,26 @@ void reload_tree (MenuCache *mc, gpointer)
 
 static void handle_menu_open (GtkWidget *widget, gpointer user_data)
 {
-     show_properties_dialog (user_data);
+     show_properties_dialog ((MenuCacheItem *) user_data);
 }
 
-static gboolean tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
+static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
 {
+    MenuCacheItem *cacheitem;
+    MenuCacheType type;
     GtkWidget *menu, *mi;
-    GtkTreeModel *mod;
     GtkTreePath *path;
     GtkTreeIter iter;
-    MenuCacheItem *cacheitem;
 
     if (event.type == GDK_BUTTON_PRESS && event.button == 3)
     {
         gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (self), event.x, event.y, &path, NULL, NULL, NULL);
         if (path)
         {
-            mod = gtk_tree_view_get_model (GTK_TREE_VIEW (self));
-            gtk_tree_model_get_iter (mod, &iter, path);
-            gtk_tree_model_get (mod, &iter, 4, &cacheitem, -1);
+            gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+            gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
-            if (menu_cache_item_get_type (cacheitem) != MENU_CACHE_TYPE_APP) return FALSE;
+            if (type != MENU_CACHE_TYPE_APP) return FALSE;
 
             menu = gtk_menu_new ();
 
@@ -228,45 +260,44 @@ static gboolean tv_button_press (GtkWidget *self, GdkEventButton event, gpointer
     return FALSE;
 }
 
-static void visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data)
+static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *path, gpointer user_data)
 {
-    GtkTreeIter iter;
-    GtkTreeModel *model;
     MenuCacheItem *cacheitem;
-    gchar *path, *str;
+    MenuCacheType type;
+    GtkTreeIter iter;
     GKeyFile *kf;
+    gboolean state;
+    gchar *filepath, *str;
     gsize len;
-    int type;
 
-    gboolean state = gtk_cell_renderer_toggle_get_active (cell);
+    state = gtk_cell_renderer_toggle_get_active (cell);
 
-    model = gtk_tree_view_get_model (GTK_TREE_VIEW (menu_tv));
-    gtk_tree_model_get_iter_from_string (model, &iter, pat);
-    gtk_tree_model_get (model, &iter, 4, &cacheitem, 5, &type, -1);
-    gtk_tree_store_set (GTK_TREE_STORE (model), &iter, 3, 1 - gtk_cell_renderer_toggle_get_active (cell), -1);
+    gtk_tree_model_get_iter_from_string (GTK_TREE_MODEL (store), &iter, path);
+    gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
+    gtk_tree_store_set (store, &iter, ITEM_VISIBLE, 1 - gtk_cell_renderer_toggle_get_active (cell), -1);
 
     if (type == MENU_CACHE_TYPE_APP || type == MENU_CACHE_TYPE_DIR)
     {
         kf = g_key_file_new ();
-        path = menu_cache_item_get_file_path (cacheitem);
-        g_key_file_load_from_file (kf, path, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+        filepath = menu_cache_item_get_file_path (cacheitem);
+        g_key_file_load_from_file (kf, filepath, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
 
         g_key_file_set_boolean (kf, "Desktop Entry", "NoDisplay", state);
 
-        str = g_path_get_basename (path);
-        g_free (path);
-        path = g_build_filename (g_get_home_dir (), ".local", "share", type == MENU_CACHE_TYPE_APP ? "applications" : "desktop-directories", str, NULL);
+        str = g_path_get_basename (filepath);
+        g_free (filepath);
+        filepath = g_build_filename (g_get_home_dir (), ".local", "share", type == MENU_CACHE_TYPE_APP ? "applications" : "desktop-directories", str, NULL);
         g_free (str);
 
-        str = g_path_get_dirname (path);
+        str = g_path_get_dirname (filepath);
         g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
         g_free (str);
 
         str = g_key_file_to_data (kf, &len, NULL);
-        g_file_set_contents (path, str, len, NULL);
+        g_file_set_contents (filepath, str, len, NULL);
         g_free (str);
 
-        g_free (path);
+        g_free (filepath);
 
         g_key_file_free (kf);
     }
@@ -287,14 +318,18 @@ int main (int argc, char *argv[])
     GtkBuilder *builder;
     GtkCellRenderer *renderer;
     MenuCacheDir *dir;
+    MenuCacheNotifyId id;
 
+    // setup localisation
     setlocale (LC_ALL, "");
     bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
     bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
     textdomain (GETTEXT_PACKAGE);
 
-    // GTK setup
+    // setup GTK
     gtk_init (&argc, &argv);
+
+    store = gtk_tree_store_new (7, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN);
 
     // build the UI
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
@@ -303,42 +338,48 @@ int main (int argc, char *argv[])
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
     g_object_unref (builder);
 
+    scale = gtk_widget_get_scale_factor (main_dlg);
+
+    // setup handlers
     g_signal_connect (main_dlg, "delete_event", G_CALLBACK (close_prog), NULL);
     g_signal_connect (close_btn, "clicked", G_CALLBACK (close_prog), NULL);
-    g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (tv_button_press), NULL);
+    g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
     
-    menu_cache = menu_cache_lookup ("applications.menu+hidden");
-    menu_cache_add_reload_notify (menu_cache, reload_tree, NULL);
-    
-    dir = NULL;
-    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
-    
-    store = gtk_tree_store_new (7, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN);
-
+    // setup tree view
     renderer = gtk_cell_renderer_toggle_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 0, "Visible", renderer, "active", ITEM_VISIBLE, "activatable", ITEM_ACTIVE, NULL);
-    g_signal_connect (renderer, "toggled", G_CALLBACK (visible_toggled), NULL);
+    g_signal_connect (renderer, "toggled", G_CALLBACK (handle_visible_toggled), NULL);
 
     renderer = gtk_cell_renderer_pixbuf_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 1, "Icon", renderer, "pixbuf", ITEM_ICON, NULL);
     GValue val = G_VALUE_INIT;
     g_value_init (&val, G_TYPE_INT);
-    g_value_set_int (&val, gtk_widget_get_scale_factor (main_dlg));
+    g_value_set_int (&val, scale);
     g_object_set_property (G_OBJECT (renderer), "scale", &val);
 
     renderer = gtk_cell_renderer_text_new ();
     gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 2, "Name", renderer, "markup", ITEM_NAME, NULL);
-    //gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 3, "ID", renderer, "text", ITEM_ID, NULL);
-    //gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 4, "Type", renderer, "text", ITEM_TYPE, NULL);
 
-    load_menu (dir, NULL);
     gtk_tree_view_set_model (GTK_TREE_VIEW (menu_tv), GTK_TREE_MODEL (store));
+
+    // read menu cache and load into tree store
+    menu_cache = menu_cache_lookup ("applications.menu+hidden");
+    id = menu_cache_add_reload_notify (menu_cache, reload_tree, NULL);
+
+    dir = NULL;
+    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
+    load_menu (dir, NULL);
+    menu_cache_item_unref ((MenuCacheItem *) dir);
 
     gtk_widget_show_all (main_dlg);
 
     gtk_main ();
 
     gtk_widget_destroy (main_dlg);
+
+    menu_cache_remove_reload_notify (menu_cache, id);
+    menu_cache_unref (menu_cache);
+
     return 0;
 }
 
