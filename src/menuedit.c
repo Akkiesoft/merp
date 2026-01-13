@@ -151,12 +151,11 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     g_slist_free (children);
 }
 
-GList *expands;
-
 gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
+    GList **expands = (GList **) data;
     if (gtk_tree_view_row_expanded (GTK_TREE_VIEW (menu_tv), path))
-        expands = g_list_append (expands, gtk_tree_path_copy (path));
+        *expands = g_list_append (*expands, gtk_tree_path_copy (path));
     return FALSE;
 }
 
@@ -169,9 +168,9 @@ void expand_row (gpointer data, gpointer user_data)
 void reload_tree (MenuCache *mc, gpointer)
 {
     MenuCacheDir *dir;
-    expands = NULL;
+    GList *expands = NULL;
 
-    gtk_tree_model_foreach (GTK_TREE_MODEL (store), store_expands, NULL);
+    gtk_tree_model_foreach (GTK_TREE_MODEL (store), store_expands, &expands);
 
     dir = NULL;
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
