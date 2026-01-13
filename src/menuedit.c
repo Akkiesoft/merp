@@ -124,7 +124,7 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                 break;
             case MENU_CACHE_TYPE_APP :
                 esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
-                if (!vis) markup = g_strdup_printf ("<span foreground=\"grey\">%s</span>", esc);
+                if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\">%s</span>", esc);
                 else markup = g_strdup (name ? name : "<unnamed>");
                 gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id ? id : "NO ID", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), -1);
                 g_free (markup);
@@ -132,7 +132,7 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                 break;
             case MENU_CACHE_TYPE_DIR :
                 esc = g_markup_escape_text (name, -1);
-                if (!vis) markup = g_strdup_printf ("<span foreground=\"grey\">%s</span>", esc);
+                if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\"><b>%s</b></span>", esc);
                 else markup = g_strdup_printf ("<b>%s</b>", esc);
                 gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id ? id : "NO ID", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), -1);
                 g_free (markup);
