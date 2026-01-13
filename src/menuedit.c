@@ -105,18 +105,6 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         icon_name = menu_cache_item_get_icon (item);
         type = menu_cache_item_get_type (item);
 
-        switch (type)
-        {
-            case MENU_CACHE_TYPE_APP :  vis = menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE);
-                                        break;
-            case MENU_CACHE_TYPE_DIR :  vis = menu_cache_dir_is_visible (MENU_CACHE_DIR (item));
-                                        break;
-            default :                   vis = TRUE;
-                                        break;
-        }
-
-        gtk_tree_store_append (store, &iter, parent);
-
         icon = NULL;
         if (icon_name)
         {
@@ -130,43 +118,51 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                 // fallback for packages using obsolete icon location
                 if (!icon)
                 {
-                    char *fname = g_strdup_printf ("/usr/share/pixmaps/%s", icon_name);
-                    icon = gdk_pixbuf_new_from_file_at_size (fname, ICON_SIZE * scale, ICON_SIZE * scale, NULL);
-                    g_free (fname);
+                    esc = g_strdup_printf ("/usr/share/pixmaps/%s", icon_name);
+                    icon = gdk_pixbuf_new_from_file_at_size (esc, ICON_SIZE * scale, ICON_SIZE * scale, NULL);
+                    g_free (esc);
                 }
             }
         }
-        if (!icon)
-            icon = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), type == MENU_CACHE_TYPE_DIR ? "folder" : "application-x-executable",
-                ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
 
         switch (type)
         {
             case MENU_CACHE_TYPE_SEP :
-                gtk_tree_store_set (store, &iter, ITEM_NAME, "----", ITEM_ICON, NULL, ITEM_ID, "", ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, FALSE, -1);
+                vis = TRUE;
+                markup = g_strdup_printf ("______");
                 break;
 
             case MENU_CACHE_TYPE_APP :
+                if (!icon)
+                    icon = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), "application-x-executable",
+                        ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
+                vis = menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE);
                 esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
                 if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\">%s</span>", esc);
                 else markup = g_strdup (esc);
-                gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, TRUE, -1);
-                g_free (markup);
                 g_free (esc);
                 break;
 
             case MENU_CACHE_TYPE_DIR :
+                if (!icon)
+                    icon = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), "folder",
+                        ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
+                vis = menu_cache_dir_is_visible (MENU_CACHE_DIR (item));
                 esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
                 if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\"><b>%s</b></span>", esc);
                 else markup = g_strdup_printf ("<b>%s</b>", esc);
-                gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, menu_cache_item_get_type (item), ITEM_ACTIVE, FALSE, -1);
-                g_free (markup);
                 g_free (esc);
                 break;
 
             default:
                 break;
         }
+
+        gtk_tree_store_append (store, &iter, parent);
+        gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, type, ITEM_ACTIVE, type == MENU_CACHE_TYPE_APP, -1);
+
+        g_free (markup);
+        if (icon) g_object_unref (icon);
 
         /* process subentries */
         if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_DIR)
