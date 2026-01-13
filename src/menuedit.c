@@ -60,8 +60,6 @@ static GtkTreeStore *store;
 
 MenuCache *menu_cache;
 
-gboolean just_viz = FALSE;
-
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -153,20 +151,35 @@ static void load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     g_slist_free (children);
 }
 
+GList *expands;
+
+gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+    if (gtk_tree_view_row_expanded (GTK_TREE_VIEW (menu_tv), path))
+        expands = g_list_append (expands, gtk_tree_path_copy (path));
+    return FALSE;
+}
+
+void expand_row (gpointer data, gpointer user_data)
+{
+    GtkTreePath *path = (GtkTreePath *) data;
+    gtk_tree_view_expand_row (GTK_TREE_VIEW (menu_tv), path, FALSE);
+}
+
 void reload_tree (MenuCache *mc, gpointer)
 {
     MenuCacheDir *dir;
+    expands = NULL;
 
-    if (just_viz)
-    {
-        just_viz = FALSE;
-        return;
-    }
+    gtk_tree_model_foreach (GTK_TREE_MODEL (store), store_expands, NULL);
 
     dir = NULL;
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     gtk_tree_store_clear (store);
     load_menu (dir, NULL);
+
+    g_list_foreach (expands, expand_row, NULL);
+    g_list_free_full (expands, (GDestroyNotify) gtk_tree_path_free);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -251,8 +264,6 @@ static void visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer u
         g_free (path);
 
         g_key_file_free (kf);
-
-        if (type == MENU_CACHE_TYPE_APP) just_viz = TRUE;
     }
 }
 
