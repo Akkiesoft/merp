@@ -54,7 +54,7 @@ extern void show_properties_dialog (MenuCacheItem *item);
 
 /* Controls */
 
-static GtkWidget *main_dlg, *menu_tv, *close_btn;
+static GtkWidget *main_dlg, *menu_tv, *close_btn, *new_btn;
 static GtkTreeStore *store;
 
 /* Cache globals */
@@ -76,6 +76,7 @@ static void expand_row (gpointer data, gpointer user_data);
 static void handle_menu_open (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
+static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 
 /*----------------------------------------------------------------------------*/
@@ -299,6 +300,12 @@ static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *path, gp
     }
 }
 
+static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    show_properties_dialog (NULL);
+    return TRUE;
+}
+
 static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
 {
     gtk_main_quit ();
@@ -331,6 +338,7 @@ int main (int argc, char *argv[])
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
     main_dlg = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
     close_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_ok");
+    new_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_new");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
     g_object_unref (builder);
 
@@ -339,6 +347,7 @@ int main (int argc, char *argv[])
     // setup handlers
     g_signal_connect (main_dlg, "delete_event", G_CALLBACK (close_prog), NULL);
     g_signal_connect (close_btn, "clicked", G_CALLBACK (close_prog), NULL);
+    g_signal_connect (new_btn, "clicked", G_CALLBACK (handle_new_button), NULL);
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
     
     // setup tree view
