@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2025 Raspberry Pi
+Copyright (c) 2026 Raspberry Pi
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Typedefs and macros                                                        */
 /*----------------------------------------------------------------------------*/
 
+#define NUM_CATS 12
+
+/*
+ * First column = category from FreeDesktop spec, used in app .desktop Categories
+ * Second column = name of menu as defined in .menu file
+ * Third column = English text name of menu
+ */
+
+const char *cat_table[NUM_CATS][3] = {
+    {"AudioVideo",   "Multimedia",       "Sound & Video"},
+    {"Development",  "Development",      "Programming"},
+    {"Education",    "Education",        "Education"},
+    {"Game",         "Games",            "Games"},
+    {"Graphics",     "Graphics",         "Graphics"},
+    {"Help",         "Help",             "Help"},
+    {"Network",      "Internet",         "Internet"},
+    {"Office",       "Office",           "Office"},
+    {"Science",      "Science",          "Science"},
+    {"Settings",     "DesktopSettings",  "Preferences"},
+    {"System",       "System",           "System Tools"},
+    {"Utility",      "Accessories",      "Accessories"}
+};
+
+/* Icon view parameters */
 #define ITEM_TITLE      0
 #define ITEM_ICON       1
 #define CELL_WIDTH      100
@@ -42,7 +66,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Global data                                                                */
 /*----------------------------------------------------------------------------*/
 
-static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal, *cb_category, *entry_id;
+static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal, *cb_category, *entry_id, *lbl_target;
 
 static GtkListStore *items;
 static GtkTreeModel *sorted;
@@ -56,34 +80,108 @@ extern MenuCache *menu_cache;
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
 
+static void show_icon (const char *name, GtkWidget *img);
+static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value);
+static gboolean update_string_if_entry_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
+static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
+static void dialog_cancel (GtkButton *, gpointer);
 static void show_icon_dialog (GtkButton *, gpointer);
 static void add_icon (gpointer data, gpointer);
 static void icon_dialog_ok (GtkButton *, gpointer user_data);
 static void load_from_file (GtkButton *, gpointer);
-static void show_icon (void);
-static gboolean update_string_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
-static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
+static gboolean set_active_cat (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void prop_dialog_ok (GtkButton *, gpointer user_data);
-static void dialog_cancel (GtkButton *, gpointer);
+static void menu_dialog_ok (GtkButton *, gpointer user_data);
 
 /*----------------------------------------------------------------------------*/
-/* Function definitions                                                       */
+/* Helpers                                                                    */
 /*----------------------------------------------------------------------------*/
 
-void set_image_from_pixbuf (GtkWidget *image, GdkPixbuf *pixbuf)
+static void show_icon (const char *name, GtkWidget *img)
 {
-    int scale = gtk_widget_get_scale_factor (image);
-    if (scale == 1) gtk_image_set_from_pixbuf (GTK_IMAGE (image), pixbuf);
+    GdkPixbuf *pixbuf;
+    int scale = gtk_widget_get_scale_factor (img);
+
+    if (strchr (name, '/'))
+        pixbuf = gdk_pixbuf_new_from_file_at_scale (name, scale * 32, scale * 32, TRUE, NULL);
+    else
+        pixbuf = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), name, 32,
+            scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
+
+    if (scale == 1) gtk_image_set_from_pixbuf (GTK_IMAGE (img), pixbuf);
     else
     {
         cairo_surface_t *cr = gdk_cairo_surface_create_from_pixbuf (pixbuf, scale, NULL);
-        gtk_image_set_from_surface (GTK_IMAGE (image), cr);
+        gtk_image_set_from_surface (GTK_IMAGE (img), cr);
         cairo_surface_destroy (cr);
     }
+
+    g_object_unref (pixbuf);
 }
 
+static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value)
+{
+    char *str;
+    gboolean update = FALSE;
 
-/* Change icon dialog */
+    str = g_key_file_get_string (kf, "Desktop Entry", param, NULL);
+    if (!str && value[0] == 0) return FALSE;
+    if (g_strcmp0 (value, str))
+    {
+        g_key_file_set_string (kf, "Desktop Entry", param, value);
+        update = TRUE;
+    }
+    g_free (str);
+
+    return update;
+}
+
+static gboolean update_string_if_entry_changed (GKeyFile *kf, const char *param, GtkWidget *widget)
+{
+    char *str, *lcparam;
+    const char *ent;
+    gboolean update;
+
+    // check for a localised version of this parameter in the key file
+    str = g_strdup (getenv ("LANG"));
+    if (strchr (str, '.')) *(strchr (str, '.')) = 0;
+    lcparam = g_strdup_printf ("%s[%s]", param, str);
+    if (!g_key_file_has_key (kf, "Desktop Entry", lcparam, NULL))
+    {
+        g_free (lcparam);
+        lcparam = g_strdup (param);
+    }
+    g_free (str);
+
+    ent = gtk_entry_get_text (GTK_ENTRY (widget));
+    update = update_string_if_changed (kf, lcparam, ent);
+
+    g_free (lcparam);
+    return update;
+}
+
+static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget)
+{
+    gboolean sw, update = FALSE;
+
+    sw = gtk_switch_get_state (GTK_SWITCH (widget));
+    if (sw != g_key_file_get_boolean (kf, "Desktop Entry", param, NULL))
+    {
+        g_key_file_set_boolean (kf, "Desktop Entry", param, sw);
+        update = TRUE;
+    }
+
+    return update;
+}
+
+static void dialog_cancel (GtkButton *, gpointer data)
+{
+    gtk_widget_destroy (GTK_WIDGET (data));
+}
+
+/*----------------------------------------------------------------------------*/
+/* Change icon dialog                                                         */
+/*----------------------------------------------------------------------------*/
 
 static void show_icon_dialog (GtkButton *, gpointer)
 {
@@ -159,7 +257,7 @@ static void icon_dialog_ok (GtkButton *, gpointer user_data)
         gtk_tree_model_get_iter (sorted, &iter, (GtkTreePath *) sel->data);
         gtk_tree_model_get (sorted, &iter, ITEM_TITLE, &icon_name, -1);
         g_list_free_full (sel, (GDestroyNotify) gtk_tree_path_free);
-        show_icon ();
+        show_icon (icon_name, img_icon);
     }
     gtk_widget_destroy (idlg);
 }
@@ -180,20 +278,27 @@ static void load_from_file (GtkButton *, gpointer)
         g_free (icon_name);
         GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
         icon_name = gtk_file_chooser_get_filename (chooser);
-        show_icon ();
+        show_icon (icon_name, img_icon);
         gtk_widget_destroy (idlg);
     }
 
     gtk_widget_destroy (dialog);
 }
 
-/* File properties dialog */
+/*----------------------------------------------------------------------------*/
+/* Menu item dialog                                                           */
+/*----------------------------------------------------------------------------*/
 
 void show_properties_dialog (MenuCacheItem *item)
 {
     GtkBuilder *builder;
-    GtkWidget *lbl_target, *lbl_file, *box_path;
-    char *str, *path;
+    GtkWidget *lbl_file, *box_path;
+    GtkTreeIter entry;
+    GtkListStore *cats;
+    GtkCellRenderer *rend;
+    MenuCacheDir *parent;
+    char *path;
+    int i;
 
     textdomain (GETTEXT_PACKAGE);
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
@@ -211,44 +316,23 @@ void show_properties_dialog (MenuCacheItem *item)
     cb_category = (GtkWidget *) gtk_builder_get_object (builder, "cb_category");
     box_path = (GtkWidget *) gtk_builder_get_object (builder, "box3");
 
-    GtkTreeIter entry;
-    GtkListStore *cats = gtk_list_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "AudioVideo", 1, "Multimedia", 2, _("Sound & Video"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Development", 1, "Development", 2, _("Programming"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Education", 1, "Education", 2, _("Education"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Game", 1, "Games", 2, _("Games"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Graphics", 1, "Graphics", 2, _("Graphics"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Help", 1, "Help", 2, _("Help"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Network", 1, "Internet", 2, _("Internet"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Office", 1, "Office", 2, _("Office"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Science", 1, "Science", 2, _("Science"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Settings", 1, "DesktopSettings", 2, _("Preferences"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "System", 1, "System", 2, _("System Tools"), -1);
-    gtk_list_store_append (cats, &entry);
-    gtk_list_store_set (cats, &entry, 0, "Utility", 1, "Accessories", 2, _("Accessories"), -1);
-
+    cats = gtk_list_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    for (i = 0; i < NUM_CATS; i++)
+    {
+        gtk_list_store_append (cats, &entry);
+        gtk_list_store_set (cats, &entry, 0, cat_table[i][0], 1, cat_table[i][1], 2, _(cat_table[i][2]), -1);
+    }
     categories = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (cats)));
     gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), 2, GTK_SORT_ASCENDING);
 
     gtk_combo_box_set_model (GTK_COMBO_BOX (cb_category), GTK_TREE_MODEL (categories));
-    GtkCellRenderer *rend = gtk_cell_renderer_text_new ();
+    rend = gtk_cell_renderer_text_new ();
     gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (cb_category), rend, FALSE);
     gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", 2);
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
-    g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), lbl_target);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
     g_object_unref (builder);
@@ -256,23 +340,11 @@ void show_properties_dialog (MenuCacheItem *item)
     if (item)
     {
         icon_name = g_strdup (menu_cache_item_get_icon (item));
-        show_icon ();
+        show_icon (icon_name, img_icon);
 
-        MenuCacheDir *parent = menu_cache_item_dup_parent (item);
-        path = menu_cache_dir_make_path (parent);
-
-        gtk_tree_model_get_iter_first (GTK_TREE_MODEL (categories), &entry);
-        while (1)
-        {
-            gtk_tree_model_get (GTK_TREE_MODEL (categories), &entry, 1, &str, -1);
-            if (strstr (path, str))
-                gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), &entry);
-            g_free (str);
-            if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (categories), &entry)) break;
-        }
-
+        path = menu_cache_item_get_file_path (item);
+        gtk_label_set_text (GTK_LABEL (lbl_target), path);
         g_free (path);
-        menu_cache_item_unref (MENU_CACHE_ITEM (parent));
 
         gtk_label_set_text (GTK_LABEL (lbl_file), menu_cache_item_get_file_basename (item));
         gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
@@ -285,8 +357,10 @@ void show_properties_dialog (MenuCacheItem *item)
         gtk_switch_set_active (GTK_SWITCH (sw_notif), menu_cache_app_get_use_sn (MENU_CACHE_APP (item)));
         gtk_switch_set_active (GTK_SWITCH (sw_terminal), menu_cache_app_get_use_terminal (MENU_CACHE_APP (item)));
 
-        path = menu_cache_item_get_file_path (item);
-        gtk_label_set_text (GTK_LABEL (lbl_target), path);
+        parent = menu_cache_item_dup_parent (item);
+        path = menu_cache_dir_make_path (parent);
+        menu_cache_item_unref (MENU_CACHE_ITEM (parent));
+        gtk_tree_model_foreach (GTK_TREE_MODEL (categories), set_active_cat, path);
         g_free (path);
 
         gtk_widget_hide (entry_id);
@@ -301,74 +375,31 @@ void show_properties_dialog (MenuCacheItem *item)
     gtk_widget_show (dlg);
 }
 
-static void show_icon (void)
+static gboolean set_active_cat (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-    GdkPixbuf *pixbuf;
-    int scale;
+    char *str;
+    gboolean end = FALSE;
 
-    scale = gtk_widget_get_scale_factor (dlg);
-    if (strchr (icon_name, '/'))
-        pixbuf = gdk_pixbuf_new_from_file_at_scale (icon_name, scale * 32, scale * 32, TRUE, NULL);
-    else
-        pixbuf = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), icon_name, 32,
-            scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
-    set_image_from_pixbuf (img_icon, pixbuf);
-    g_object_unref (pixbuf);
-}
-
-static gboolean update_string_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget)
-{
-    char *str, *lcparam;
-    const char *ent;
-    gboolean update;
-
-    str = g_strdup (getenv ("LANG"));
-    if (strchr (str, '.')) *(strchr (str, '.')) = 0;
-    lcparam = g_strdup_printf ("%s[%s]", param, str);
-    if (!g_key_file_has_key (kf, "Desktop Entry", lcparam, NULL))
+    gtk_tree_model_get (model, iter, 1, &str, -1);
+    if (strstr ((const char *) data, str))
     {
-        g_free (lcparam);
-        lcparam = g_strdup (param);
+        gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), iter);
+        end = TRUE;
     }
     g_free (str);
-
-    str = g_key_file_get_string (kf, "Desktop Entry", lcparam, NULL);
-    ent = gtk_entry_get_text (GTK_ENTRY (widget));
-    if (!str && ent[0] == 0) update = FALSE;
-    else if (!g_strcmp0 (str, ent)) update = FALSE;
-    else
-    {
-        g_key_file_set_string (kf, "Desktop Entry", lcparam, ent);
-        update = TRUE;
-    }
-    g_free (str);
-    g_free (lcparam);
-    return update;
-}
-
-static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget)
-{
-    gboolean update, sw;
-
-    sw = gtk_switch_get_state (GTK_SWITCH (widget));
-    if (sw != g_key_file_get_boolean (kf, "Desktop Entry", param, NULL))
-    {
-        g_key_file_set_boolean (kf, "Desktop Entry", param, sw);
-        update = TRUE;
-    }
-    else update = FALSE;
-    return update;
+    return end;
 }
 
 static void prop_dialog_ok (GtkButton *, gpointer user_data)
 {
-    GtkLabel *lbl_target = GTK_LABEL (user_data);
     GKeyFile *kf;
     char *path, *str;
+    const char *targ, *cat;
     gsize len;
-    gboolean update = FALSE;
+    gboolean update;
+    GtkTreeIter iter;
 
-    const char *targ = gtk_label_get_text (lbl_target);
+    targ = gtk_label_get_text (GTK_LABEL (lbl_target));
     if (!strlen (targ)) targ = NULL;
 
     // use the target file as source
@@ -378,32 +409,19 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     else
         g_key_file_set_string (kf, "Desktop Entry", "Type", "Application");
 
-    update |= update_string_if_changed (kf, "Name", entry_name);
-    update |= update_string_if_changed (kf, "Comment", entry_desc);
-    update |= update_string_if_changed (kf, "Exec", entry_cmd);
-    update |= update_string_if_changed (kf, "Path", entry_dir);
+    update = FALSE;
+    update |= update_string_if_entry_changed (kf, "Name", entry_name);
+    update |= update_string_if_entry_changed (kf, "Comment", entry_desc);
+    update |= update_string_if_entry_changed (kf, "Exec", entry_cmd);
+    update |= update_string_if_entry_changed (kf, "Path", entry_dir);
     update |= update_bool_if_changed (kf, "StartupNotify", sw_notif);
     update |= update_bool_if_changed (kf, "Terminal", sw_terminal);
+    update |= update_string_if_changed (kf, "Icon", icon_name);
 
-    const char *cat;
-    GtkTreeIter iter;
     if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
         gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, 0, &cat, -1);
-    str = g_key_file_get_string (kf, "Desktop Entry", "Categories", NULL);
-    if (g_strcmp0 (cat, str))
-    {
-        g_key_file_set_string (kf, "Desktop Entry", "Categories", cat);
-        update = TRUE;
-    }
-    g_free (str);
 
-    str = g_key_file_get_string (kf, "Desktop Entry", "Icon", NULL);
-    if (g_strcmp0 (icon_name, str))
-    {
-        g_key_file_set_string (kf, "Desktop Entry", "Icon", icon_name);
-        update = TRUE;
-    }
-    g_free (str);
+    update |= update_string_if_changed (kf, "Categories", cat);
 
     // write to the override in local
     if (update)
@@ -437,34 +455,64 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     gtk_widget_destroy (dlg);
 }
 
-static void dialog_cancel (GtkButton *, gpointer data)
+/*----------------------------------------------------------------------------*/
+/* Menu dialog                                                                */
+/*----------------------------------------------------------------------------*/
+
+void show_menu_dialog (MenuCacheItem *item)
 {
-    gtk_widget_destroy (GTK_WIDGET (data));
+    GtkBuilder *builder;
+    GtkWidget *lbl_file;
+    char *path;
+
+    textdomain (GETTEXT_PACKAGE);
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
+    dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_menu");
+    lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mtarget");
+    lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mfile");
+    entry_name = (GtkWidget *) gtk_builder_get_object (builder, "entry_mname");
+    img_icon = (GtkWidget *) gtk_builder_get_object (builder, "img_micon");
+
+    g_signal_connect (gtk_builder_get_object (builder, "btn_mcancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_micons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_mok"), "clicked", G_CALLBACK (menu_dialog_ok), NULL);
+
+    gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
+    g_object_unref (builder);
+
+    if (item)
+    {
+        icon_name = g_strdup (menu_cache_item_get_icon (item));
+        show_icon (icon_name, img_icon);
+
+        path = menu_cache_item_get_file_path (item);
+        gtk_label_set_text (GTK_LABEL (lbl_target), path);
+        g_free (path);
+
+        gtk_label_set_text (GTK_LABEL (lbl_file), menu_cache_item_get_file_basename (item));
+        gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
+    }
+
+    gtk_widget_show (dlg);
 }
 
 static void menu_dialog_ok (GtkButton *, gpointer user_data)
 {
-    GtkLabel *lbl_target = GTK_LABEL (user_data);
     GKeyFile *kf;
     char *path, *str;
+    const char *targ;
     gsize len;
-    gboolean update = FALSE;
+    gboolean update;
 
-    const char *targ = gtk_label_get_text (lbl_target);
+    targ = gtk_label_get_text (GTK_LABEL (lbl_target));
 
     // use the target file as source
     kf = g_key_file_new ();
     g_key_file_load_from_file (kf, targ, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
 
-    update |= update_string_if_changed (kf, "Name", entry_name);
-
-    str = g_key_file_get_string (kf, "Desktop Entry", "Icon", NULL);
-    if (g_strcmp0 (icon_name, str))
-    {
-        g_key_file_set_string (kf, "Desktop Entry", "Icon", icon_name);
-        update = TRUE;
-    }
-    g_free (str);
+    update = FALSE;
+    update |= update_string_if_entry_changed (kf, "Name", entry_name);
+    update |= update_string_if_changed (kf, "Icon", icon_name);
 
     // write to the override in local
     if (update)
@@ -488,43 +536,6 @@ static void menu_dialog_ok (GtkButton *, gpointer user_data)
     g_key_file_free (kf);
 
     gtk_widget_destroy (dlg);
-}
-
-void show_menu_dialog (MenuCacheItem *item)
-{
-    GtkBuilder *builder;
-    GtkWidget *lbl_target, *lbl_file;
-    char *path;
-
-    textdomain (GETTEXT_PACKAGE);
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
-    dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_menu");
-    lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mtarget");
-    lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mfile");
-    entry_name = (GtkWidget *) gtk_builder_get_object (builder, "entry_mname");
-    img_icon = (GtkWidget *) gtk_builder_get_object (builder, "img_micon");
-
-    g_signal_connect (gtk_builder_get_object (builder, "btn_mcancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
-    g_signal_connect (gtk_builder_get_object (builder, "btn_micons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
-    g_signal_connect (gtk_builder_get_object (builder, "btn_mok"), "clicked", G_CALLBACK (menu_dialog_ok), lbl_target);
-
-    gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
-    g_object_unref (builder);
-
-    if (item)
-    {
-        icon_name = g_strdup (menu_cache_item_get_icon (item));
-        show_icon ();
-
-        gtk_label_set_text (GTK_LABEL (lbl_file), menu_cache_item_get_file_basename (item));
-        gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
-
-        path = menu_cache_item_get_file_path (item);
-        gtk_label_set_text (GTK_LABEL (lbl_target), path);
-        g_free (path);
-    }
-
-    gtk_widget_show (dlg);
 }
 
 
