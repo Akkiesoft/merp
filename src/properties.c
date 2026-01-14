@@ -64,7 +64,6 @@ static void show_icon (void);
 static gboolean update_string_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static void prop_dialog_ok (GtkButton *, gpointer user_data);
-static void new_dialog_ok (GtkButton *, gpointer user_data);
 static void dialog_cancel (GtkButton *, gpointer);
 
 /*----------------------------------------------------------------------------*/
@@ -249,13 +248,13 @@ void show_properties_dialog (MenuCacheItem *item)
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), lbl_target);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
+    g_object_unref (builder);
 
     if (item)
     {
-        g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), lbl_target);
-
         icon_name = g_strdup (menu_cache_item_get_icon (item));
         show_icon ();
 
@@ -294,13 +293,11 @@ void show_properties_dialog (MenuCacheItem *item)
     }
     else
     {
-        g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (new_dialog_ok), NULL);
-
+        gtk_label_set_text (GTK_LABEL (lbl_target), NULL);
         gtk_widget_hide (lbl_file);
         gtk_widget_hide (box_path);
     }
 
-    g_object_unref (builder);
     gtk_widget_show (dlg);
 }
 
@@ -365,15 +362,21 @@ static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidg
 
 static void prop_dialog_ok (GtkButton *, gpointer user_data)
 {
-    GtkWidget *lbl_target = (GtkWidget *) user_data;
+    GtkLabel *lbl_target = GTK_LABEL (user_data);
     GKeyFile *kf;
     char *path, *str;
     gsize len;
     gboolean update = FALSE;
 
+    const char *targ = gtk_label_get_text (lbl_target);
+    if (!strlen (targ)) targ = NULL;
+
     // use the target file as source
     kf = g_key_file_new ();
-    g_key_file_load_from_file (kf, gtk_label_get_text (GTK_LABEL (lbl_target)), G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+    if (targ)
+        g_key_file_load_from_file (kf, targ, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+    else
+        g_key_file_set_string (kf, "Desktop Entry", "Type", "Application");
 
     update |= update_string_if_changed (kf, "Name", entry_name);
     update |= update_string_if_changed (kf, "Comment", entry_desc);
@@ -405,73 +408,15 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     // write to the override in local
     if (update)
     {
-        str = g_path_get_basename (gtk_label_get_text (GTK_LABEL (lbl_target)));
-        path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", str, NULL);
-        g_free (str);
-
-        str = g_path_get_dirname (path);
-        g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
-        g_free (str);
-
-        str = g_key_file_to_data (kf, &len, NULL);
-        g_file_set_contents (path, str, len, NULL);
-        g_free (str);
-
-        g_free (path);
-
-        menu_cache_reload (menu_cache);
-    }
-    g_key_file_free (kf);
-
-    gtk_widget_destroy (dlg);
-}
-
-static void new_dialog_ok (GtkButton *, gpointer user_data)
-{
-    GKeyFile *kf;
-    char *path, *str;
-    gsize len;
-    gboolean update = FALSE;
-
-    // use the target file as source
-    kf = g_key_file_new ();
-    g_key_file_set_string (kf, "Desktop Entry", "Type", "Application");
-
-    update |= update_string_if_changed (kf, "Name", entry_name);
-    update |= update_string_if_changed (kf, "Comment", entry_desc);
-    update |= update_string_if_changed (kf, "Exec", entry_cmd);
-    update |= update_string_if_changed (kf, "Path", entry_dir);
-    update |= update_bool_if_changed (kf, "StartupNotify", sw_notif);
-    update |= update_bool_if_changed (kf, "Terminal", sw_terminal);
-
-    const char *cat;
-    GtkTreeIter iter;
-    if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
-        gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, 0, &cat, -1);
-    str = g_key_file_get_string (kf, "Desktop Entry", "Categories", NULL);
-    if (g_strcmp0 (cat, str))
-    {
-        g_key_file_set_string (kf, "Desktop Entry", "Categories", cat);
-        update = TRUE;
-    }
-    g_free (str);
-
-    str = g_key_file_get_string (kf, "Desktop Entry", "Icon", NULL);
-    if (g_strcmp0 (icon_name, str))
-    {
-        g_key_file_set_string (kf, "Desktop Entry", "Icon", icon_name);
-        update = TRUE;
-    }
-    g_free (str);
-
-    // write to the override in local
-    if (update)
-    {
-        if (strstr (gtk_entry_get_text (GTK_ENTRY (entry_id)), ".desktop"))
-            str = g_strdup (gtk_entry_get_text (GTK_ENTRY (entry_id)));
+        if (targ)
+            str = g_path_get_basename (targ);
         else
-            str = g_strdup_printf ("%s.desktop", gtk_entry_get_text (GTK_ENTRY (entry_id)));
-
+        {
+            if (strstr (gtk_entry_get_text (GTK_ENTRY (entry_id)), ".desktop"))
+                str = g_strdup (gtk_entry_get_text (GTK_ENTRY (entry_id)));
+            else
+                str = g_strdup_printf ("%s.desktop", gtk_entry_get_text (GTK_ENTRY (entry_id)));
+        }
         path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", str, NULL);
         g_free (str);
 
@@ -491,7 +436,6 @@ static void new_dialog_ok (GtkButton *, gpointer user_data)
 
     gtk_widget_destroy (dlg);
 }
-
 
 static void dialog_cancel (GtkButton *, gpointer data)
 {
