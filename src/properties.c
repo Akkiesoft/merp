@@ -102,6 +102,8 @@ static void show_icon (const char *name, GtkWidget *img)
     GdkPixbuf *pixbuf;
     int scale = gtk_widget_get_scale_factor (img);
 
+    if (!name) return;
+
     if (strchr (name, '/'))
         pixbuf = gdk_pixbuf_new_from_file_at_scale (name, scale * 32, scale * 32, TRUE, NULL);
     else
@@ -125,7 +127,7 @@ static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const
     gboolean update = FALSE;
 
     str = g_key_file_get_string (kf, "Desktop Entry", param, NULL);
-    if (!str && value[0] == 0) return FALSE;
+    if (!str && (!value || value[0] == 0)) return FALSE;
     if (g_strcmp0 (value, str))
     {
         g_key_file_set_string (kf, "Desktop Entry", param, value);
@@ -360,13 +362,19 @@ void show_properties_dialog (MenuCacheItem *item)
         parent = menu_cache_item_dup_parent (item);
         path = menu_cache_dir_make_path (parent);
         menu_cache_item_unref (MENU_CACHE_ITEM (parent));
-        gtk_tree_model_foreach (GTK_TREE_MODEL (categories), set_active_cat, path);
-        g_free (path);
+        if (path)
+        {
+            gtk_tree_model_foreach (GTK_TREE_MODEL (categories), set_active_cat, path);
+            g_free (path);
+        }
 
         gtk_widget_hide (entry_id);
     }
     else
     {
+        icon_name = g_strdup ("file");
+        show_icon (icon_name, img_icon);
+
         gtk_label_set_text (GTK_LABEL (lbl_target), NULL);
         gtk_widget_hide (lbl_file);
         gtk_widget_hide (box_path);
@@ -399,15 +407,29 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     gboolean update;
     GtkTreeIter iter;
 
-    targ = gtk_label_get_text (GTK_LABEL (lbl_target));
-    if (!strlen (targ)) targ = NULL;
-
-    // use the target file as source
     kf = g_key_file_new ();
-    if (targ)
-        g_key_file_load_from_file (kf, targ, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
-    else
+
+    targ = gtk_label_get_text (GTK_LABEL (lbl_target));
+    if (!strlen (targ))
+    {
+        // target unset - new file
+        targ = gtk_entry_get_text (GTK_ENTRY (entry_id));
+        if (!strlen (targ)) goto finish;
+        if (!strlen (gtk_entry_get_text (GTK_ENTRY (entry_name)))) goto finish;
+        if (!strlen (gtk_entry_get_text (GTK_ENTRY (entry_cmd)))) goto finish;
+
         g_key_file_set_string (kf, "Desktop Entry", "Type", "Application");
+        if (strstr (targ, ".desktop"))
+            str = g_strdup (targ);
+        else
+            str = g_strdup_printf ("%s.desktop", targ);
+    }
+    else
+    {
+        // target set - modify existing file
+        g_key_file_load_from_file (kf, targ, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+        str = g_path_get_basename (targ);
+    }
 
     update = FALSE;
     update |= update_string_if_entry_changed (kf, "Name", entry_name);
@@ -426,15 +448,6 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     // write to the override in local
     if (update)
     {
-        if (targ)
-            str = g_path_get_basename (targ);
-        else
-        {
-            if (strstr (gtk_entry_get_text (GTK_ENTRY (entry_id)), ".desktop"))
-                str = g_strdup (gtk_entry_get_text (GTK_ENTRY (entry_id)));
-            else
-                str = g_strdup_printf ("%s.desktop", gtk_entry_get_text (GTK_ENTRY (entry_id)));
-        }
         path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", str, NULL);
         g_free (str);
 
@@ -450,6 +463,8 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
 
         menu_cache_reload (menu_cache);
     }
+
+finish:
     g_key_file_free (kf);
 
     gtk_widget_destroy (dlg);
