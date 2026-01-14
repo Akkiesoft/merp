@@ -442,5 +442,91 @@ static void dialog_cancel (GtkButton *, gpointer data)
     gtk_widget_destroy (GTK_WIDGET (data));
 }
 
+static void menu_dialog_ok (GtkButton *, gpointer user_data)
+{
+    GtkLabel *lbl_target = GTK_LABEL (user_data);
+    GKeyFile *kf;
+    char *path, *str;
+    gsize len;
+    gboolean update = FALSE;
+
+    const char *targ = gtk_label_get_text (lbl_target);
+
+    // use the target file as source
+    kf = g_key_file_new ();
+    g_key_file_load_from_file (kf, targ, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+
+    update |= update_string_if_changed (kf, "Name", entry_name);
+
+    str = g_key_file_get_string (kf, "Desktop Entry", "Icon", NULL);
+    if (g_strcmp0 (icon_name, str))
+    {
+        g_key_file_set_string (kf, "Desktop Entry", "Icon", icon_name);
+        update = TRUE;
+    }
+    g_free (str);
+
+    // write to the override in local
+    if (update)
+    {
+        str = g_path_get_basename (targ);
+        path = g_build_filename (g_get_home_dir (), ".local", "share", "desktop-directories",  str, NULL);
+        g_free (str);
+
+        str = g_path_get_dirname (path);
+        g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+        g_free (str);
+
+        str = g_key_file_to_data (kf, &len, NULL);
+        g_file_set_contents (path, str, len, NULL);
+        g_free (str);
+
+        g_free (path);
+
+        menu_cache_reload (menu_cache);
+    }
+    g_key_file_free (kf);
+
+    gtk_widget_destroy (dlg);
+}
+
+void show_menu_dialog (MenuCacheItem *item)
+{
+    GtkBuilder *builder;
+    GtkWidget *lbl_target, *lbl_file;
+    char *path;
+
+    textdomain (GETTEXT_PACKAGE);
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
+    dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_menu");
+    lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mtarget");
+    lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mfile");
+    entry_name = (GtkWidget *) gtk_builder_get_object (builder, "entry_mname");
+    img_icon = (GtkWidget *) gtk_builder_get_object (builder, "img_micon");
+
+    g_signal_connect (gtk_builder_get_object (builder, "btn_mcancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_micons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_mok"), "clicked", G_CALLBACK (menu_dialog_ok), lbl_target);
+
+    gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
+    g_object_unref (builder);
+
+    if (item)
+    {
+        icon_name = g_strdup (menu_cache_item_get_icon (item));
+        show_icon ();
+
+        gtk_label_set_text (GTK_LABEL (lbl_file), menu_cache_item_get_file_basename (item));
+        gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
+
+        path = menu_cache_item_get_file_path (item);
+        gtk_label_set_text (GTK_LABEL (lbl_target), path);
+        g_free (path);
+    }
+
+    gtk_widget_show (dlg);
+}
+
+
 /* End of file */
 /*----------------------------------------------------------------------------*/

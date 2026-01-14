@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <menu-cache.h>
 
 extern void show_properties_dialog (MenuCacheItem *item);
+extern void show_menu_dialog (MenuCacheItem *item);
 
 /*----------------------------------------------------------------------------*/
 /* Macros                                                                     */
@@ -221,7 +222,11 @@ static void expand_row (gpointer data, gpointer user_data)
 
 static void handle_menu_open (GtkWidget *widget, gpointer user_data)
 {
-     show_properties_dialog ((MenuCacheItem *) user_data);
+    MenuCacheItem *cacheitem = (MenuCacheItem *) user_data;
+    if (menu_cache_item_get_type (cacheitem) == MENU_CACHE_TYPE_APP)
+        show_properties_dialog (cacheitem);
+    else
+        show_menu_dialog (cacheitem);
 }
 
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
@@ -240,7 +245,7 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
             gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
             gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
-            if (type != MENU_CACHE_TYPE_APP) return FALSE;
+            if (type == MENU_CACHE_TYPE_SEP) return FALSE;
 
             menu = gtk_menu_new ();
 
