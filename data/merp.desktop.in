@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Menu Editor
+Comment=Edit the main menu
+Icon=alacarte
+Exec=merp
+StartupNotify=true
+Categories=Settings;

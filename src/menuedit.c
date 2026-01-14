@@ -340,7 +340,7 @@ int main (int argc, char *argv[])
     store = gtk_tree_store_new (7, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN);
 
     // build the UI
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
     main_dlg = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
     close_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_ok");
     new_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_new");

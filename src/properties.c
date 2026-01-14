@@ -94,7 +94,7 @@ static void show_icon_dialog (GtkButton *, gpointer)
     GValue val = G_VALUE_INIT;
 
     textdomain (GETTEXT_PACKAGE);
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
     idlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_icons");
     iv_icons = (GtkWidget *) gtk_builder_get_object (builder, "iv_icons");
     gtk_window_set_transient_for (GTK_WINDOW (idlg), GTK_WINDOW (dlg));
@@ -196,7 +196,7 @@ void show_properties_dialog (MenuCacheItem *item)
     char *str, *path;
 
     textdomain (GETTEXT_PACKAGE);
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
     dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_properties");
     lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_target");
     lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_file");
@@ -497,7 +497,7 @@ void show_menu_dialog (MenuCacheItem *item)
     char *path;
 
     textdomain (GETTEXT_PACKAGE);
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
     dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_menu");
     lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mtarget");
     lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mfile");
