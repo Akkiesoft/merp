@@ -42,7 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Global data                                                                */
 /*----------------------------------------------------------------------------*/
 
-static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal, *cb_category;
+static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal, *cb_category, *entry_id;
 
 static GtkListStore *items;
 static GtkTreeModel *sorted;
@@ -64,6 +64,7 @@ static void show_icon (void);
 static gboolean update_string_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static void prop_dialog_ok (GtkButton *, gpointer user_data);
+static void new_dialog_ok (GtkButton *, gpointer user_data);
 static void dialog_cancel (GtkButton *, gpointer);
 
 /*----------------------------------------------------------------------------*/
@@ -192,24 +193,24 @@ static void load_from_file (GtkButton *, gpointer)
 void show_properties_dialog (MenuCacheItem *item)
 {
     GtkBuilder *builder;
-    GtkWidget *lbl_target;
+    GtkWidget *lbl_target, *lbl_file, *box_path;
     char *str, *path;
 
     textdomain (GETTEXT_PACKAGE);
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/menuedit.ui");
     dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_properties");
     lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_target");
+    lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_file");
     entry_name = (GtkWidget *) gtk_builder_get_object (builder, "entry_name");
     entry_cmd = (GtkWidget *) gtk_builder_get_object (builder, "entry_cmd");
     entry_dir = (GtkWidget *) gtk_builder_get_object (builder, "entry_dir");
     entry_desc = (GtkWidget *) gtk_builder_get_object (builder, "entry_desc");
+    entry_id = (GtkWidget *) gtk_builder_get_object (builder, "entry_id");
     img_icon = (GtkWidget *) gtk_builder_get_object (builder, "img_icon");
     sw_notif = (GtkWidget *) gtk_builder_get_object (builder, "sw_notif");
     sw_terminal = (GtkWidget *) gtk_builder_get_object (builder, "sw_terminal");
     cb_category = (GtkWidget *) gtk_builder_get_object (builder, "cb_category");
-
-    icon_name = g_strdup (menu_cache_item_get_icon (item));
-    show_icon ();
+    box_path = (GtkWidget *) gtk_builder_get_object (builder, "box3");
 
     GtkTreeIter entry;
     GtkListStore *cats = gtk_list_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
@@ -246,44 +247,61 @@ void show_properties_dialog (MenuCacheItem *item)
     gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (cb_category), rend, FALSE);
     gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", 2);
 
-    MenuCacheDir *parent = menu_cache_item_dup_parent (item);
-    path = menu_cache_dir_make_path (parent);
-
-    gtk_tree_model_get_iter_first (GTK_TREE_MODEL (categories), &entry);
-    while (1)
-    {
-        gtk_tree_model_get (GTK_TREE_MODEL (categories), &entry, 1, &str, -1);
-        if (strstr (path, str))
-            gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), &entry);
-        g_free (str);
-        if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (categories), &entry)) break;
-    }
-
-    g_free (path);
-    menu_cache_item_unref (MENU_CACHE_ITEM (parent));
-
-    gtk_label_set_text (GTK_LABEL (gtk_builder_get_object (builder, "lbl_file")), menu_cache_item_get_file_basename (item));
-    gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
-    gtk_entry_set_text (GTK_ENTRY (entry_cmd), menu_cache_app_get_exec (MENU_CACHE_APP (item)));
-    if (menu_cache_item_get_comment (item))
-        gtk_entry_set_text (GTK_ENTRY (entry_desc), menu_cache_item_get_comment (item));
-    if (menu_cache_app_get_working_dir (MENU_CACHE_APP (item)))
-        gtk_entry_set_text (GTK_ENTRY (entry_dir), menu_cache_app_get_working_dir (MENU_CACHE_APP (item)));
-
-    gtk_switch_set_active (GTK_SWITCH (sw_notif), menu_cache_app_get_use_sn (MENU_CACHE_APP (item)));
-    gtk_switch_set_active (GTK_SWITCH (sw_terminal), menu_cache_app_get_use_terminal (MENU_CACHE_APP (item)));
-
-    path = menu_cache_item_get_file_path (item);
-    gtk_label_set_text (GTK_LABEL (lbl_target), path);
-    g_free (path);
-
-    g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), lbl_target);
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
-    gtk_widget_show (dlg);
+
+    if (item)
+    {
+        g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), lbl_target);
+
+        icon_name = g_strdup (menu_cache_item_get_icon (item));
+        show_icon ();
+
+        MenuCacheDir *parent = menu_cache_item_dup_parent (item);
+        path = menu_cache_dir_make_path (parent);
+
+        gtk_tree_model_get_iter_first (GTK_TREE_MODEL (categories), &entry);
+        while (1)
+        {
+            gtk_tree_model_get (GTK_TREE_MODEL (categories), &entry, 1, &str, -1);
+            if (strstr (path, str))
+                gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), &entry);
+            g_free (str);
+            if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (categories), &entry)) break;
+        }
+
+        g_free (path);
+        menu_cache_item_unref (MENU_CACHE_ITEM (parent));
+
+        gtk_label_set_text (GTK_LABEL (lbl_file), menu_cache_item_get_file_basename (item));
+        gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
+        gtk_entry_set_text (GTK_ENTRY (entry_cmd), menu_cache_app_get_exec (MENU_CACHE_APP (item)));
+        if (menu_cache_item_get_comment (item))
+            gtk_entry_set_text (GTK_ENTRY (entry_desc), menu_cache_item_get_comment (item));
+        if (menu_cache_app_get_working_dir (MENU_CACHE_APP (item)))
+            gtk_entry_set_text (GTK_ENTRY (entry_dir), menu_cache_app_get_working_dir (MENU_CACHE_APP (item)));
+
+        gtk_switch_set_active (GTK_SWITCH (sw_notif), menu_cache_app_get_use_sn (MENU_CACHE_APP (item)));
+        gtk_switch_set_active (GTK_SWITCH (sw_terminal), menu_cache_app_get_use_terminal (MENU_CACHE_APP (item)));
+
+        path = menu_cache_item_get_file_path (item);
+        gtk_label_set_text (GTK_LABEL (lbl_target), path);
+        g_free (path);
+
+        gtk_widget_hide (entry_id);
+    }
+    else
+    {
+        g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (new_dialog_ok), NULL);
+
+        gtk_widget_hide (lbl_file);
+        gtk_widget_hide (box_path);
+    }
+
     g_object_unref (builder);
+    gtk_widget_show (dlg);
 }
 
 static void show_icon (void)
@@ -407,6 +425,73 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
 
     gtk_widget_destroy (dlg);
 }
+
+static void new_dialog_ok (GtkButton *, gpointer user_data)
+{
+    GKeyFile *kf;
+    char *path, *str;
+    gsize len;
+    gboolean update = FALSE;
+
+    // use the target file as source
+    kf = g_key_file_new ();
+    g_key_file_set_string (kf, "Desktop Entry", "Type", "Application");
+
+    update |= update_string_if_changed (kf, "Name", entry_name);
+    update |= update_string_if_changed (kf, "Comment", entry_desc);
+    update |= update_string_if_changed (kf, "Exec", entry_cmd);
+    update |= update_string_if_changed (kf, "Path", entry_dir);
+    update |= update_bool_if_changed (kf, "StartupNotify", sw_notif);
+    update |= update_bool_if_changed (kf, "Terminal", sw_terminal);
+
+    const char *cat;
+    GtkTreeIter iter;
+    if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
+        gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, 0, &cat, -1);
+    str = g_key_file_get_string (kf, "Desktop Entry", "Categories", NULL);
+    if (g_strcmp0 (cat, str))
+    {
+        g_key_file_set_string (kf, "Desktop Entry", "Categories", cat);
+        update = TRUE;
+    }
+    g_free (str);
+
+    str = g_key_file_get_string (kf, "Desktop Entry", "Icon", NULL);
+    if (g_strcmp0 (icon_name, str))
+    {
+        g_key_file_set_string (kf, "Desktop Entry", "Icon", icon_name);
+        update = TRUE;
+    }
+    g_free (str);
+
+    // write to the override in local
+    if (update)
+    {
+        if (strstr (gtk_entry_get_text (GTK_ENTRY (entry_id)), ".desktop"))
+            str = g_strdup (gtk_entry_get_text (GTK_ENTRY (entry_id)));
+        else
+            str = g_strdup_printf ("%s.desktop", gtk_entry_get_text (GTK_ENTRY (entry_id)));
+
+        path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", str, NULL);
+        g_free (str);
+
+        str = g_path_get_dirname (path);
+        g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+        g_free (str);
+
+        str = g_key_file_to_data (kf, &len, NULL);
+        g_file_set_contents (path, str, len, NULL);
+        g_free (str);
+
+        g_free (path);
+
+        menu_cache_reload (menu_cache);
+    }
+    g_key_file_free (kf);
+
+    gtk_widget_destroy (dlg);
+}
+
 
 static void dialog_cancel (GtkButton *, gpointer data)
 {
