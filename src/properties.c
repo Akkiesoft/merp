@@ -85,7 +85,7 @@ static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const
 static gboolean update_string_if_entry_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static void dialog_cancel (GtkButton *, gpointer);
-static void show_icon_dialog (GtkButton *, gpointer);
+static void show_icon_dialog (GtkButton *, gpointer category);
 static void add_icon (gpointer data, gpointer);
 static void icon_dialog_ok (GtkButton *, gpointer user_data);
 static void load_from_file (GtkButton *, gpointer);
@@ -185,7 +185,7 @@ static void dialog_cancel (GtkButton *, gpointer data)
 /* Change icon dialog                                                         */
 /*----------------------------------------------------------------------------*/
 
-static void show_icon_dialog (GtkButton *, gpointer)
+static void show_icon_dialog (GtkButton *, gpointer category)
 {
     GtkBuilder *builder;
     GtkCellRenderer *renderer;
@@ -220,7 +220,7 @@ static void show_icon_dialog (GtkButton *, gpointer)
 
     gtk_icon_view_set_model (GTK_ICON_VIEW (iv_icons), sorted);
 
-    icon_list = gtk_icon_theme_list_icons (gtk_icon_theme_get_default (), "Applications");
+    icon_list = gtk_icon_theme_list_icons (gtk_icon_theme_get_default (), (char *) category);
     g_list_foreach (icon_list, add_icon, NULL);
     g_list_free_full (icon_list, (GDestroyNotify) g_free);
     gtk_window_set_default_size (GTK_WINDOW (idlg), 500, 400);
@@ -333,7 +333,7 @@ void show_properties_dialog (MenuCacheItem *item)
     gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", 2);
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
-    g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), "Applications");
     g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
@@ -489,7 +489,7 @@ void show_menu_dialog (MenuCacheItem *item)
     img_icon = (GtkWidget *) gtk_builder_get_object (builder, "img_micon");
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_mcancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
-    g_signal_connect (gtk_builder_get_object (builder, "btn_micons"), "clicked", G_CALLBACK (show_icon_dialog), NULL);
+    g_signal_connect (gtk_builder_get_object (builder, "btn_micons"), "clicked", G_CALLBACK (show_icon_dialog), "Categories");
     g_signal_connect (gtk_builder_get_object (builder, "btn_mok"), "clicked", G_CALLBACK (menu_dialog_ok), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
