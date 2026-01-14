@@ -82,8 +82,8 @@ extern MenuCache *menu_cache;
 
 static void show_icon (const char *name, GtkWidget *img);
 static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value);
-static gboolean update_string_if_entry_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
+static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget *widget);
 static void dialog_cancel (GtkButton *, gpointer);
 static void show_icon_dialog (GtkButton *, gpointer category);
 static void add_icon (gpointer data, gpointer);
@@ -138,7 +138,22 @@ static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const
     return update;
 }
 
-static gboolean update_string_if_entry_changed (GKeyFile *kf, const char *param, GtkWidget *widget)
+static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget)
+{
+    gboolean sw, update = FALSE;
+
+    sw = gtk_switch_get_state (GTK_SWITCH (widget));
+    if (!g_key_file_has_key (kf, "Desktop Entry", param, NULL) 
+        || sw != g_key_file_get_boolean (kf, "Desktop Entry", param, NULL))
+    {
+        g_key_file_set_boolean (kf, "Desktop Entry", param, sw);
+        update = TRUE;
+    }
+
+    return update;
+}
+
+static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget *widget)
 {
     char *str, *lcparam;
     const char *ent;
@@ -159,20 +174,6 @@ static gboolean update_string_if_entry_changed (GKeyFile *kf, const char *param,
     update = update_string_if_changed (kf, lcparam, ent);
 
     g_free (lcparam);
-    return update;
-}
-
-static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget)
-{
-    gboolean sw, update = FALSE;
-
-    sw = gtk_switch_get_state (GTK_SWITCH (widget));
-    if (sw != g_key_file_get_boolean (kf, "Desktop Entry", param, NULL))
-    {
-        g_key_file_set_boolean (kf, "Desktop Entry", param, sw);
-        update = TRUE;
-    }
-
     return update;
 }
 
@@ -432,10 +433,10 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     }
 
     update = FALSE;
-    update |= update_string_if_entry_changed (kf, "Name", entry_name);
-    update |= update_string_if_entry_changed (kf, "Comment", entry_desc);
-    update |= update_string_if_entry_changed (kf, "Exec", entry_cmd);
-    update |= update_string_if_entry_changed (kf, "Path", entry_dir);
+    update |= update_changed_entry (kf, "Name", entry_name);
+    update |= update_changed_entry (kf, "Comment", entry_desc);
+    update |= update_changed_entry (kf, "Exec", entry_cmd);
+    update |= update_changed_entry (kf, "Path", entry_dir);
     update |= update_bool_if_changed (kf, "StartupNotify", sw_notif);
     update |= update_bool_if_changed (kf, "Terminal", sw_terminal);
     update |= update_string_if_changed (kf, "Icon", icon_name);
@@ -526,7 +527,7 @@ static void menu_dialog_ok (GtkButton *, gpointer user_data)
     g_key_file_load_from_file (kf, targ, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
 
     update = FALSE;
-    update |= update_string_if_entry_changed (kf, "Name", entry_name);
+    update |= update_changed_entry (kf, "Name", entry_name);
     update |= update_string_if_changed (kf, "Icon", icon_name);
 
     // write to the override in local
