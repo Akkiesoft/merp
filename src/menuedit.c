@@ -264,8 +264,13 @@ static void write_menu_xml (void)
 {
     xmlDocPtr xDoc;
     xmlNode *root_node, *child_node;
+    char *str;
 
     LIBXML_TEST_VERSION
+
+    str = g_path_get_dirname (usermenufile);
+    g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+    g_free (str);
 
     xDoc = xmlNewDoc ((xmlChar *) "1.0");
     root_node = xmlNewNode (NULL, (xmlChar *) "Menu");
