@@ -59,6 +59,10 @@ GtkTreeModelSort *categories;
 
 int scale;
 
+/* XML menu definition files */
+
+char *sysmenufile, *usermenufile;
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -69,7 +73,7 @@ static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void expand_row (gpointer data, gpointer user_data);
-static void write_menu_xml (char *filename);
+static void write_menu_xml (void);
 static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void handle_edit_item (GtkWidget *widget, gpointer user_data);
 static void handle_item_up (GtkWidget *widget, gpointer user_data);
@@ -256,7 +260,7 @@ static void expand_row (gpointer data, gpointer user_data)
 /* Writing menu XML file                                                      */
 /*----------------------------------------------------------------------------*/
 
-static void write_menu_xml (char *filename)
+static void write_menu_xml (void)
 {
     xmlDocPtr xDoc;
     xmlNode *root_node, *child_node;
@@ -273,7 +277,7 @@ static void write_menu_xml (char *filename)
 
     child_node = xmlNewNode (NULL, (xmlChar *) "MergeFile");
     xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "parent");
-    xmlNodeSetContent (child_node, (xmlChar *) "/etc/xdg/menus/rpd-applications.menu");
+    xmlNodeSetContent (child_node, (xmlChar *) sysmenufile);
     xmlAddChild (root_node, child_node);
 
     child_node = xmlNewNode (NULL, (xmlChar *) "Layout");
@@ -291,7 +295,7 @@ static void write_menu_xml (char *filename)
     xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "files");
     xmlAddChild (root_node, child_node);
 
-    xmlSaveFormatFile (filename, xDoc, 1);
+    xmlSaveFormatFile (usermenufile, xDoc, 1);
     xmlFreeDoc (xDoc);
     xmlCleanupParser ();
 }
@@ -349,7 +353,7 @@ static void handle_item_up (GtkWidget *widget, gpointer user_data)
     gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &dest);
     gtk_tree_store_move_before (store, &this, &dest);
 
-    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
+    write_menu_xml ();
 }
 
 static void handle_item_down (GtkWidget *widget, gpointer user_data)
@@ -362,7 +366,7 @@ static void handle_item_down (GtkWidget *widget, gpointer user_data)
     gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &dest);
     gtk_tree_store_move_after (store, &this, &dest);
 
-    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
+    write_menu_xml ();
 }
 
 static void handle_add_separator (GtkWidget *widget, gpointer user_data)
@@ -374,7 +378,7 @@ static void handle_add_separator (GtkWidget *widget, gpointer user_data)
     gtk_tree_store_insert_after (store, &dest, NULL, &this);
     gtk_tree_store_set (store, &dest, ITEM_NAME, "______", ITEM_TYPE, MENU_CACHE_TYPE_SEP, ITEM_VISIBLE, TRUE, -1);
 
-    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
+    write_menu_xml ();
 }
 
 static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
@@ -385,7 +389,7 @@ static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     gtk_tree_store_remove (store, &this);
 
-    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
+    write_menu_xml ();
 }
 
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
@@ -511,6 +515,10 @@ int main (int argc, char *argv[])
     GtkTreeModelFilter *cat_filter;
     MenuCacheDir *dir;
     MenuCacheNotifyId id;
+
+    // read menu prefix and get system and local filenames
+    sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX"));
+    usermenufile = g_strdup_printf ("%s/menus/%sapplications.menu", g_get_user_config_dir (), getenv ("XDG_MENU_PREFIX"));
 
     // setup localisation
     setlocale (LC_ALL, "");
