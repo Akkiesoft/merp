@@ -63,7 +63,7 @@ int scale;
 
 char *sysmenufile, *usermenufile;
 
-xmlNode *cur_node;
+xmlNode *root_node, *cur_node;
 
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
@@ -269,7 +269,7 @@ static void expand_row (gpointer data, gpointer user_data)
 static void write_menu_xml (void)
 {
     xmlDocPtr xDoc;
-    xmlNode *root_node, *child_node;
+    xmlNode *child_node;
     char *str;
 
     LIBXML_TEST_VERSION
@@ -294,11 +294,11 @@ static void write_menu_xml (void)
 
     add_layout_header ();
 
-    // loop through store adding a child for each element...
+    // loop through store adding an item to the Applications layout XML for each top-level element...
     gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_toplevel_to_xml, NULL);
 
-    // loop through the store again, adding the submenus...
-    gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_submenus_to_xml, root_node);
+    // loop through the store again, adding the submenus after the Applications layout...
+    gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_submenus_to_xml, NULL);
 
     add_layout_footer ();
 
@@ -309,25 +309,26 @@ static void write_menu_xml (void)
 
 static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-    if (gtk_tree_path_get_depth (path) != 1) return FALSE;
-    add_item_to_xml (model, iter);
+    if (gtk_tree_path_get_depth (path) == 1) add_item_to_xml (model, iter);
     return FALSE;
 }
 
 static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-    xmlNode *root_node = (xmlNode *) data, *child_node;
+    xmlNode *child_node;
     char *id;
     MenuCacheType type;
 
     if (gtk_tree_path_get_depth (path) == 1)
     {
+        // a new top-level element...
         gtk_tree_model_get (model, iter, ITEM_ID, &id, ITEM_TYPE, &type, -1);
         if (type == MENU_CACHE_TYPE_DIR)
         {
+            // ...which is a directory, so get ready to add a new directory to the XML
             add_layout_footer ();
 
-            if (cur_node != root_node) cur_node = root_node;
+            cur_node = root_node;
 
             child_node = xmlNewNode (NULL, (xmlChar *) "Menu");
             xmlAddChild (cur_node, child_node);
