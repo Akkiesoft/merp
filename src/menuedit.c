@@ -71,7 +71,9 @@ static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
 static void expand_row (gpointer data, gpointer user_data);
 static void write_menu_xml (char *filename);
 static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
-static void handle_menu_open (GtkWidget *widget, gpointer user_data);
+static void handle_edit_item (GtkWidget *widget, gpointer user_data);
+static void handle_item_up (GtkWidget *widget, gpointer user_data);
+static void handle_item_down (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
 static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
@@ -326,13 +328,39 @@ static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, Gtk
 /* Handlers for main window user interaction                                  */
 /*----------------------------------------------------------------------------*/
 
-static void handle_menu_open (GtkWidget *widget, gpointer user_data)
+static void handle_edit_item (GtkWidget *widget, gpointer user_data)
 {
     MenuCacheItem *cacheitem = (MenuCacheItem *) user_data;
     if (menu_cache_item_get_type (cacheitem) == MENU_CACHE_TYPE_APP)
         show_properties_dialog (cacheitem);
     else
         show_menu_dialog (cacheitem);
+}
+
+static void handle_item_up (GtkWidget *widget, gpointer user_data)
+{
+    GtkTreePath *path = (GtkTreePath *) user_data;
+    GtkTreeIter this, dest;
+
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
+    dest = this;
+    gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &dest);
+    gtk_tree_store_move_before (store, &this, &dest);
+
+    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
+}
+
+static void handle_item_down (GtkWidget *widget, gpointer user_data)
+{
+    GtkTreePath *path = (GtkTreePath *) user_data;
+    GtkTreeIter this, dest;
+
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
+    dest = this;
+    gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &dest);
+    gtk_tree_store_move_after (store, &this, &dest);
+
+    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
 }
 
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
@@ -351,13 +379,25 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
             gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
             gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
-            if (type == MENU_CACHE_TYPE_SEP) return FALSE;
-
             menu = gtk_menu_new ();
 
-            mi = gtk_menu_item_new_with_label (_("Edit item"));
-            g_signal_connect (mi, "activate", G_CALLBACK (handle_menu_open), cacheitem);
-            gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+            if (type != MENU_CACHE_TYPE_SEP)
+            {
+                mi = gtk_menu_item_new_with_label (_("Edit item"));
+                g_signal_connect (mi, "activate", G_CALLBACK (handle_edit_item), cacheitem);
+                gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+            }
+
+            if (gtk_tree_path_get_depth (path) == 1)
+            {
+                mi = gtk_menu_item_new_with_label (_("Move item up"));
+                g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
+                gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+
+                mi = gtk_menu_item_new_with_label (_("Move item down"));
+                g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), path);
+                gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+            }
 
             gtk_widget_show_all (menu);
             gtk_menu_popup_at_pointer (GTK_MENU (menu), (GdkEvent *) &event);
