@@ -74,6 +74,8 @@ static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, Gtk
 static void handle_edit_item (GtkWidget *widget, gpointer user_data);
 static void handle_item_up (GtkWidget *widget, gpointer user_data);
 static void handle_item_down (GtkWidget *widget, gpointer user_data);
+static void handle_add_separator (GtkWidget *widget, gpointer user_data);
+static void handle_remove_separator (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
 static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
@@ -363,6 +365,29 @@ static void handle_item_down (GtkWidget *widget, gpointer user_data)
     write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
 }
 
+static void handle_add_separator (GtkWidget *widget, gpointer user_data)
+{
+    GtkTreePath *path = (GtkTreePath *) user_data;
+    GtkTreeIter this, dest;
+
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
+    gtk_tree_store_insert_after (store, &dest, NULL, &this);
+    gtk_tree_store_set (store, &dest, ITEM_NAME, "______", ITEM_TYPE, MENU_CACHE_TYPE_SEP, ITEM_VISIBLE, TRUE, -1);
+
+    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
+}
+
+static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
+{
+    GtkTreePath *path = (GtkTreePath *) user_data;
+    GtkTreeIter this;
+
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
+    gtk_tree_store_remove (store, &this);
+
+    write_menu_xml ("/home/spl/.config/menus/rpd-applications.menu");
+}
+
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
 {
     MenuCacheItem *cacheitem;
@@ -383,19 +408,31 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
 
             if (type != MENU_CACHE_TYPE_SEP)
             {
-                mi = gtk_menu_item_new_with_label (_("Edit item"));
+                mi = gtk_menu_item_new_with_label (_("Edit Item"));
                 g_signal_connect (mi, "activate", G_CALLBACK (handle_edit_item), cacheitem);
                 gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
             }
 
             if (gtk_tree_path_get_depth (path) == 1)
             {
-                mi = gtk_menu_item_new_with_label (_("Move item up"));
+                mi = gtk_menu_item_new_with_label (_("Move Item Up"));
                 g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
                 gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
 
-                mi = gtk_menu_item_new_with_label (_("Move item down"));
+                mi = gtk_menu_item_new_with_label (_("Move Item Down"));
                 g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), path);
+                gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+
+                if (type == MENU_CACHE_TYPE_SEP)
+                {
+                    mi = gtk_menu_item_new_with_label (_("Remove Separator"));
+                    g_signal_connect (mi, "activate", G_CALLBACK (handle_remove_separator), path);
+                }
+                else
+                {
+                    mi = gtk_menu_item_new_with_label (_("Add Separator"));
+                    g_signal_connect (mi, "activate", G_CALLBACK (handle_add_separator), path);
+                }
                 gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
             }
 
