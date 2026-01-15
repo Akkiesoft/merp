@@ -101,6 +101,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         icon_name = menu_cache_item_get_icon (item);
         type = menu_cache_item_get_type (item);
 
+        if (!name) continue;
         if (type == MENU_CACHE_TYPE_APP && !can_execute (item)) continue;
 
         icon = NULL;
@@ -135,7 +136,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                     icon = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), "application-x-executable",
                         ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
                 vis = menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE);
-                esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
+                esc = g_markup_escape_text (name, -1);
                 if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\">%s</span>", esc);
                 else markup = g_strdup (esc);
                 g_free (esc);
@@ -146,7 +147,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                     icon = gtk_icon_theme_load_icon_for_scale (gtk_icon_theme_get_default (), "folder",
                         ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
                 vis = menu_cache_dir_is_visible (MENU_CACHE_DIR (item));
-                esc = g_markup_escape_text (name ? name : "<unnamed>", -1);
+                esc = g_markup_escape_text (name, -1);
                 if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\"><b>%s</b></span>", esc);
                 else markup = g_strdup_printf ("<b>%s</b>", esc);
                 g_free (esc);
