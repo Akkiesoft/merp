@@ -32,20 +32,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <locale.h>
 #include <menu-cache.h>
 
-extern void show_properties_dialog (MenuCacheItem *item);
-extern void show_menu_dialog (MenuCacheItem *item);
+#include "menuedit.h"
 
 /*----------------------------------------------------------------------------*/
 /* Macros                                                                     */
 /*----------------------------------------------------------------------------*/
-
-#define ITEM_NAME       0
-#define ITEM_ICON       1
-#define ITEM_ID         2
-#define ITEM_VISIBLE    3
-#define ITEM_POINTER    4
-#define ITEM_TYPE       5
-#define ITEM_ACTIVE     6
 
 #define ICON_SIZE 24
 
@@ -61,6 +52,7 @@ static GtkTreeStore *store;
 /* Cache globals */
 
 MenuCache *menu_cache;
+GtkTreeModelSort *categories;
 
 /* Scaling factor */
 
@@ -161,7 +153,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         }
 
         gtk_tree_store_append (store, &iter, parent);
-        gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, type, ITEM_ACTIVE, type == MENU_CACHE_TYPE_APP, -1);
+        gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, type, ITEM_ACTIVE, type == MENU_CACHE_TYPE_APP, ITEM_CBNAME, name, -1);
 
         g_free (markup);
         if (icon) g_object_unref (icon);
@@ -177,6 +169,14 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     g_slist_free (children);
 
     return TRUE;
+}
+
+static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+    MenuCacheType type;
+
+    gtk_tree_model_get (model, iter, ITEM_TYPE, &type, -1);
+    return type == MENU_CACHE_TYPE_DIR;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -325,6 +325,7 @@ int main (int argc, char *argv[])
 {
     GtkBuilder *builder;
     GtkCellRenderer *renderer;
+    GtkTreeModelFilter *cat_filter;
     MenuCacheDir *dir;
     MenuCacheNotifyId id;
 
@@ -337,7 +338,7 @@ int main (int argc, char *argv[])
     // setup GTK
     gtk_init (&argc, &argv);
 
-    store = gtk_tree_store_new (7, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN);
+    store = gtk_tree_store_new (8, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN, G_TYPE_STRING);
 
     // build the UI
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
@@ -380,6 +381,12 @@ int main (int argc, char *argv[])
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     load_menu (dir, NULL);
     menu_cache_item_unref ((MenuCacheItem *) dir);
+
+    cat_filter = GTK_TREE_MODEL_FILTER (gtk_tree_model_filter_new (GTK_TREE_MODEL (store), NULL));
+    gtk_tree_model_filter_set_visible_func (cat_filter, (GtkTreeModelFilterVisibleFunc) only_dirs, NULL, NULL);
+
+    categories = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (cat_filter)));
+    gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), ITEM_NAME, GTK_SORT_ASCENDING);
 
     gtk_widget_show_all (main_dlg);
 

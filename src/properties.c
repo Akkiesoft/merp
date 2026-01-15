@@ -30,38 +30,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <glib/gi18n.h>
 #include <menu-cache.h>
 
+#include "menuedit.h"
+
 /*----------------------------------------------------------------------------*/
 /* Typedefs and macros                                                        */
 /*----------------------------------------------------------------------------*/
 
-#define NUM_CATS 12
-
-#define CAT_DFILE 0
-#define CAT_MFILE 1
-#define CAT_NAME 2
-
-/*
- * First column = category from FreeDesktop spec, used in app .desktop Categories
- * Second column = name of menu as defined in .menu file
- * Third column = English text name of menu
- */
-
-const char *cat_table[NUM_CATS][3] = {
-    {"AudioVideo",   "Multimedia",       "Sound & Video"},
-    {"Development",  "Development",      "Programming"},
-    {"Education",    "Education",        "Education"},
-    {"Game",         "Games",            "Games"},
-    {"Graphics",     "Graphics",         "Graphics"},
-    {"Help",         "Help",             "Help"},
-    {"Network",      "Internet",         "Internet"},
-    {"Office",       "Office",           "Office"},
-    {"Science",      "Science",          "Science"},
-    {"Settings",     "DesktopSettings",  "Preferences"},
-    {"System",       "System",           "System Tools"},
-    {"Utility",      "Accessories",      "Accessories"}
-};
-
 /* Icon view parameters */
+
 #define ITEM_TITLE      0
 #define ITEM_ICON       1
 #define CELL_WIDTH      100
@@ -74,11 +50,8 @@ static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, 
 
 static GtkListStore *items;
 static GtkTreeModel *sorted;
-static GtkTreeModelSort *categories;
 
 static char *icon_name;
-
-extern MenuCache *menu_cache;
 
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
@@ -300,12 +273,9 @@ void show_properties_dialog (MenuCacheItem *item)
 {
     GtkBuilder *builder;
     GtkWidget *lbl_file, *box_path;
-    GtkTreeIter entry;
-    GtkListStore *cats;
     GtkCellRenderer *rend;
     MenuCacheDir *parent;
     char *path;
-    int i;
 
     textdomain (GETTEXT_PACKAGE);
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
@@ -323,19 +293,10 @@ void show_properties_dialog (MenuCacheItem *item)
     cb_category = (GtkWidget *) gtk_builder_get_object (builder, "cb_category");
     box_path = (GtkWidget *) gtk_builder_get_object (builder, "box3");
 
-    cats = gtk_list_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
-    for (i = 0; i < NUM_CATS; i++)
-    {
-        gtk_list_store_append (cats, &entry);
-        gtk_list_store_set (cats, &entry, CAT_DFILE, cat_table[i][CAT_DFILE], CAT_MFILE, cat_table[i][CAT_MFILE], CAT_NAME, _(cat_table[i][CAT_NAME]), -1);
-    }
-    categories = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (cats)));
-    gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), CAT_NAME, GTK_SORT_ASCENDING);
-
     gtk_combo_box_set_model (GTK_COMBO_BOX (cb_category), GTK_TREE_MODEL (categories));
     rend = gtk_cell_renderer_text_new ();
     gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (cb_category), rend, FALSE);
-    gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", CAT_NAME);
+    gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", ITEM_CBNAME);
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), "Applications");
@@ -393,7 +354,7 @@ static gboolean set_active_cat (GtkTreeModel *model, GtkTreePath *path, GtkTreeI
     char *str;
     gboolean end = FALSE;
 
-    gtk_tree_model_get (model, iter, CAT_MFILE, &str, -1);
+    gtk_tree_model_get (model, iter, ITEM_ID, &str, -1);
     if (strstr ((const char *) data, str))
     {
         gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), iter);
@@ -446,9 +407,10 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     update |= update_string_if_changed (kf, "Icon", icon_name);
 
     if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
-        gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, CAT_DFILE, &cat, -1);
-
-    update |= update_string_if_changed (kf, "Categories", cat);
+    {
+        gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, ITEM_ID, &cat, -1);
+        update |= update_string_if_changed (kf, "Categories", cat);
+    }
 
     // write to the override in local
     if (update)
