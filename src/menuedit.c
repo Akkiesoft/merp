@@ -78,6 +78,9 @@ static void expand_row (gpointer data, gpointer user_data);
 static void write_menu_xml (void);
 static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
+static void add_layout_header (void);
+static void add_layout_footer (void);
+static void add_item_to_xml (GtkTreeModel *model, GtkTreeIter *iter);
 static void handle_edit_item (GtkWidget *widget, gpointer user_data);
 static void handle_item_up (GtkWidget *widget, gpointer user_data);
 static void handle_item_down (GtkWidget *widget, gpointer user_data);
@@ -289,23 +292,15 @@ static void write_menu_xml (void)
     xmlNodeSetContent (child_node, (xmlChar *) sysmenufile);
     xmlAddChild (cur_node, child_node);
 
-    child_node = xmlNewNode (NULL, (xmlChar *) "Layout");
-    xmlAddChild (cur_node, child_node);
-    cur_node = child_node;
-
-    child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
-    xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "menus");
-    xmlAddChild (cur_node, child_node);
+    add_layout_header ();
 
     // loop through store adding a child for each element...
-    gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_toplevel_to_xml, cur_node);
+    gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_toplevel_to_xml, NULL);
 
-    // here, loop through the rest of the store, adding the submenus
+    // loop through the store again, adding the submenus...
     gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_submenus_to_xml, root_node);
 
-    child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
-    xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "files");
-    xmlAddChild (cur_node, child_node);
+    add_layout_footer ();
 
     xmlSaveFormatFile (usermenufile, xDoc, 1);
     xmlFreeDoc (xDoc);
@@ -314,11 +309,70 @@ static void write_menu_xml (void)
 
 static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
+    if (gtk_tree_path_get_depth (path) != 1) return FALSE;
+    add_item_to_xml (model, iter);
+    return FALSE;
+}
+
+static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
     xmlNode *root_node = (xmlNode *) data, *child_node;
     char *id;
     MenuCacheType type;
 
-    if (gtk_tree_path_get_depth (path) != 1) return FALSE;
+    if (gtk_tree_path_get_depth (path) == 1)
+    {
+        gtk_tree_model_get (model, iter, ITEM_ID, &id, ITEM_TYPE, &type, -1);
+        if (type == MENU_CACHE_TYPE_DIR)
+        {
+            add_layout_footer ();
+
+            if (cur_node != root_node) cur_node = root_node;
+
+            child_node = xmlNewNode (NULL, (xmlChar *) "Menu");
+            xmlAddChild (cur_node, child_node);
+            cur_node = child_node;
+
+            child_node = xmlNewNode (NULL, (xmlChar *) "Name");
+            xmlNodeSetContent (child_node, (xmlChar *) id);
+            xmlAddChild (cur_node, child_node);
+
+            add_layout_header ();
+        }
+    }
+    else if (gtk_tree_path_get_depth (path) == 2) add_item_to_xml (model, iter);
+
+    return FALSE;
+}
+
+static void add_layout_header (void)
+{
+    xmlNode *child_node;
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "Layout");
+    xmlAddChild (cur_node, child_node);
+    cur_node = child_node;
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
+    xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "menus");
+    xmlAddChild (cur_node, child_node);
+}
+
+static void add_layout_footer (void)
+{
+    xmlNode *child_node;
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
+    xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "files");
+    xmlAddChild (cur_node, child_node);
+}
+
+static void add_item_to_xml (GtkTreeModel *model, GtkTreeIter *iter)
+{
+    xmlNode *child_node;
+    MenuCacheType type;
+    char *id;
+
     gtk_tree_model_get (model, iter, ITEM_ID, &id, ITEM_TYPE, &type, -1);
 
     switch (type)
@@ -335,69 +389,10 @@ static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, Gtk
             xmlNodeSetContent (child_node, (xmlChar *) id);
             break;
         default :
-            return FALSE;
+            return;
     }
 
-    xmlAddChild (root_node, child_node);
-    return FALSE;
-}
-
-static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
-{
-    xmlNode *root_node = (xmlNode *) data, *child_node;
-    char *id;
-    MenuCacheType type;
-
-    if (gtk_tree_path_get_depth (path) == 1)
-    {
-        gtk_tree_model_get (model, iter, ITEM_ID, &id, ITEM_TYPE, &type, -1);
-        if (type == MENU_CACHE_TYPE_DIR)
-        {
-            child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
-            xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "files");
-            xmlAddChild (cur_node, child_node);
-
-            if (cur_node != root_node) cur_node = root_node;
-
-            child_node = xmlNewNode (NULL, (xmlChar *) "Menu");
-            xmlAddChild (cur_node, child_node);
-            cur_node = child_node;
-
-            child_node = xmlNewNode (NULL, (xmlChar *) "Name");
-            xmlNodeSetContent (child_node, (xmlChar *) id);
-            xmlAddChild (cur_node, child_node);
-
-            child_node = xmlNewNode (NULL, (xmlChar *) "Layout");
-            xmlAddChild (cur_node, child_node);
-            cur_node = child_node;
-
-            child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
-            xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "menus");
-            xmlAddChild (cur_node, child_node);
-        }
-    }
-    else if (gtk_tree_path_get_depth (path) == 2)
-    {
-        gtk_tree_model_get (model, iter, ITEM_ID, &id, ITEM_TYPE, &type, -1);
-        switch (type)
-        {
-            case MENU_CACHE_TYPE_SEP :
-                child_node = xmlNewNode (NULL, (xmlChar *) "Separator");
-                break;
-            case MENU_CACHE_TYPE_DIR :
-                child_node = xmlNewNode (NULL, (xmlChar *) "Menuname");
-                xmlNodeSetContent (child_node, (xmlChar *) id);
-                break;
-            case MENU_CACHE_TYPE_APP :
-                child_node = xmlNewNode (NULL, (xmlChar *) "Filename");
-                xmlNodeSetContent (child_node, (xmlChar *) id);
-                break;
-            default :
-                return FALSE;
-        }
-        xmlAddChild (cur_node, child_node);
-    }
-    return FALSE;
+    xmlAddChild (cur_node, child_node);
 }
 
 /*----------------------------------------------------------------------------*/
