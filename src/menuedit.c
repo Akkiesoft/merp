@@ -63,6 +63,8 @@ int scale;
 /*----------------------------------------------------------------------------*/
 
 static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent);
+static gboolean can_execute (MenuCacheItem *item);
+static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void expand_row (gpointer data, gpointer user_data);
@@ -98,6 +100,8 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         id = menu_cache_item_get_id (item);
         icon_name = menu_cache_item_get_icon (item);
         type = menu_cache_item_get_type (item);
+
+        if (type == MENU_CACHE_TYPE_APP && !can_execute (item)) continue;
 
         icon = NULL;
         if (icon_name)
@@ -169,6 +173,30 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     g_slist_free (children);
 
     return TRUE;
+}
+
+static gboolean can_execute (MenuCacheItem *item)
+{
+    GKeyFile *kf;
+    const char *filepath;
+    char *exec, *path;
+    gboolean result = TRUE;
+
+    kf = g_key_file_new ();
+    filepath = menu_cache_item_get_file_path (item);
+    g_key_file_load_from_file (kf, filepath, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+
+    if (g_key_file_has_key (kf, "Desktop Entry", "TryExec", NULL))
+    {
+        exec = g_key_file_get_string (kf, "Desktop Entry", "TryExec", NULL);
+        path = g_find_program_in_path (exec);
+        if (!path) result = FALSE;
+        g_free (path);
+        g_free (exec);
+    }
+
+    g_key_file_free (kf);
+    return result;
 }
 
 static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
