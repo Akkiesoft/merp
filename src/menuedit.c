@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <glib/gi18n.h>
 #include <locale.h>
 #include <menu-cache.h>
+#include <libxml/xpath.h>
 
 #include "menuedit.h"
 
@@ -68,6 +69,8 @@ static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void expand_row (gpointer data, gpointer user_data);
+static void write_menu_xml (char *filename);
+static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void handle_menu_open (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
@@ -101,7 +104,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         icon_name = menu_cache_item_get_icon (item);
         type = menu_cache_item_get_type (item);
 
-        if (!name) continue;
+        if (type != MENU_CACHE_TYPE_SEP && !name) continue;
         if (type == MENU_CACHE_TYPE_APP && !can_execute (item)) continue;
 
         icon = NULL;
@@ -243,6 +246,80 @@ static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
 static void expand_row (gpointer data, gpointer user_data)
 {
     gtk_tree_view_expand_row (GTK_TREE_VIEW (menu_tv), (GtkTreePath *) data, FALSE);
+}
+
+/*----------------------------------------------------------------------------*/
+/* Writing menu XML file                                                      */
+/*----------------------------------------------------------------------------*/
+
+static void write_menu_xml (char *filename)
+{
+    xmlDocPtr xDoc;
+    xmlNode *root_node, *child_node;
+
+    LIBXML_TEST_VERSION
+
+    xDoc = xmlNewDoc ((xmlChar *) "1.0");
+    root_node = xmlNewNode (NULL, (xmlChar *) "Menu");
+    xmlDocSetRootElement (xDoc, root_node);
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "Name");
+    xmlNodeSetContent (child_node, (xmlChar *) "Applications");
+    xmlAddChild (root_node, child_node);
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "MergeFile");
+    xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "parent");
+    xmlNodeSetContent (child_node, (xmlChar *) "/etc/xdg/menus/rpd-applications.menu");
+    xmlAddChild (root_node, child_node);
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "Layout");
+    xmlAddChild (root_node, child_node);
+    root_node = child_node;
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
+    xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "menus");
+    xmlAddChild (root_node, child_node);
+
+    // loop through store adding a child for each element...
+    gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_toplevel_to_xml, root_node);
+
+    child_node = xmlNewNode (NULL, (xmlChar *) "Merge");
+    xmlSetProp (child_node, (xmlChar *) "type", (xmlChar *) "files");
+    xmlAddChild (root_node, child_node);
+
+    xmlSaveFormatFile (filename, xDoc, 1);
+    xmlFreeDoc (xDoc);
+    xmlCleanupParser ();
+}
+
+static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+    xmlNode *root_node = (xmlNode *) data, *child_node;
+    char *id;
+    MenuCacheType type;
+
+    if (gtk_tree_path_get_depth (path) > 1) return FALSE;
+    gtk_tree_model_get (model, iter, ITEM_ID, &id, ITEM_TYPE, &type, -1);
+
+    switch (type)
+    {
+        case MENU_CACHE_TYPE_SEP :
+            child_node = xmlNewNode (NULL, (xmlChar *) "Separator");
+            break;
+        case MENU_CACHE_TYPE_DIR :
+            child_node = xmlNewNode (NULL, (xmlChar *) "Menuname");
+            xmlNodeSetContent (child_node, (xmlChar *) id);
+            break;
+        case MENU_CACHE_TYPE_APP :
+            child_node = xmlNewNode (NULL, (xmlChar *) "Filename");
+            xmlNodeSetContent (child_node, (xmlChar *) id);
+            break;
+        default :
+            return FALSE;
+    }
+
+    xmlAddChild (root_node, child_node);
+    return FALSE;
 }
 
 /*----------------------------------------------------------------------------*/
