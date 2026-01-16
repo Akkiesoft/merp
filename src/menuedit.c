@@ -307,12 +307,14 @@ static void write_menu_xml (char *id)
     }
     else
     {
+        // create a new menu and layout section
         create_node ("Menu", NULL, NULL, TRUE);
         create_node ("Name", id, NULL, FALSE);
+
         create_node ("Layout", NULL, NULL, TRUE);
         create_node ("Merge", NULL, "menus", FALSE);
 
-        // loop through the store adding the submenus matching the id
+        // loop through the store adding the submenu items matching the id
         gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_submenus_to_xml, id);
 
         create_node ("Merge", NULL, "files", FALSE);
@@ -335,7 +337,7 @@ static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, Gtk
 
     if (gtk_tree_path_get_depth (path) == 2)
     {
-        // ignore if the parent of this item does not match the one desired
+        // only add if the parent of this item matches the one desired
         parent = get_parent (path);
         if (!g_strcmp0 (parent, (char *) data)) add_item_to_xml (model, iter);
         g_free (parent);
