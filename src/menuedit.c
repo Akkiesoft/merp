@@ -443,13 +443,14 @@ static void handle_item_up (GtkWidget *widget, gpointer user_data)
 {
     GtkTreePath *path = (GtkTreePath *) user_data;
     GtkTreeIter this, dest;
+    char *parent;
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     dest = this;
     gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &dest);
     gtk_tree_store_move_before (store, &this, &dest);
 
-    char *parent = get_parent (path);
+    parent = get_parent (path);
     write_menu_xml (parent);
     g_free (parent);
 }
@@ -458,13 +459,14 @@ static void handle_item_down (GtkWidget *widget, gpointer user_data)
 {
     GtkTreePath *path = (GtkTreePath *) user_data;
     GtkTreeIter this, dest;
+    char *parent;
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     dest = this;
     gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &dest);
     gtk_tree_store_move_after (store, &this, &dest);
 
-    char *parent = get_parent (path);
+    parent = get_parent (path);
     write_menu_xml (parent);
     g_free (parent);
 }
@@ -473,12 +475,13 @@ static void handle_add_separator (GtkWidget *widget, gpointer user_data)
 {
     GtkTreePath *path = (GtkTreePath *) user_data;
     GtkTreeIter this, dest;
+    char *parent;
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     gtk_tree_store_insert_after (store, &dest, NULL, &this);
     gtk_tree_store_set (store, &dest, ITEM_NAME, "______", ITEM_TYPE, MENU_CACHE_TYPE_SEP, ITEM_VISIBLE, TRUE, -1);
 
-    char *parent = get_parent (path);
+    parent = get_parent (path);
     write_menu_xml (parent);
     g_free (parent);
 }
@@ -487,11 +490,12 @@ static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
 {
     GtkTreePath *path = (GtkTreePath *) user_data;
     GtkTreeIter this;
+    char *parent;
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     gtk_tree_store_remove (store, &this);
 
-    char *parent = get_parent (path);
+    parent = get_parent (path);
     write_menu_xml (parent);
     g_free (parent);
 }
