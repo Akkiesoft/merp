@@ -79,10 +79,11 @@ static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void expand_row (gpointer data, gpointer user_data);
-static void write_menu_xml (void);
+static void write_menu_xml (char *id);
 static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void create_node (const char *name, const char *content, const char *type, gboolean enter);
+static char *get_parent (GtkTreePath *path);
 static void add_item_to_xml (GtkTreeModel *model, GtkTreeIter *iter);
 static void handle_edit_item (GtkWidget *widget, gpointer user_data);
 static void handle_item_up (GtkWidget *widget, gpointer user_data);
@@ -269,9 +270,9 @@ static void expand_row (gpointer data, gpointer user_data)
 /* Writing menu XML file                                                      */
 /*----------------------------------------------------------------------------*/
 
-static void write_menu_xml (void)
+static void write_menu_xml (char *id)
 {
-    xmlDocPtr xDoc;
+    xmlDocPtr xDoc = NULL;
     char *str;
 
     LIBXML_TEST_VERSION
@@ -280,23 +281,42 @@ static void write_menu_xml (void)
     g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
     g_free (str);
 
-    xDoc = xmlNewDoc (XC ("1.0"));
-    root_node = xmlNewNode (NULL, XC ("Menu"));
-    xmlDocSetRootElement (xDoc, root_node);
+    // read in the user file if it exists; init if not
+    if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR)) xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
+    if (!xDoc) xDoc = xmlNewDoc (XC ("1.0"));
+    root_node = xmlDocGetRootElement (xDoc);
+    if (root_node == NULL)
+    {
+        root_node = xmlNewNode (NULL, XC ("Menu"));
+        xmlDocSetRootElement (xDoc, root_node);
+        cur_node = root_node;
+        create_node ("Name", "Applications", NULL, FALSE);
+        create_node ("MergeFile", sysmenufile, "parent", FALSE);
+    }
+    else cur_node = root_node;
 
-    cur_node = root_node;
-    create_node ("Name", "Applications", NULL, FALSE);
-    create_node ("MergeFile", sysmenufile, "parent", FALSE);
-    create_node ("Layout", NULL, NULL, TRUE);
-    create_node ("Merge", NULL, "menus", FALSE);
+    if (strlen (id) == 0)
+    {
+        create_node ("Layout", NULL, NULL, TRUE);
+        create_node ("Merge", NULL, "menus", FALSE);
 
-    // loop through store adding an item to the Applications layout XML for each top-level element
-    gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_toplevel_to_xml, NULL);
+        // loop through store adding an item to the Applications layout XML for each top-level element
+        gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_toplevel_to_xml, NULL);
 
-    // loop through the store again, adding the submenus after the Applications layout
-    gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_submenus_to_xml, NULL);
+        create_node ("Merge", NULL, "files", FALSE);
+    }
+    else
+    {
+        create_node ("Menu", NULL, NULL, TRUE);
+        create_node ("Name", id, NULL, FALSE);
+        create_node ("Layout", NULL, NULL, TRUE);
+        create_node ("Merge", NULL, "menus", FALSE);
 
-    create_node ("Merge", NULL, "files", FALSE);
+        // loop through the store adding the submenus matching the id
+        gtk_tree_model_foreach (GTK_TREE_MODEL (store), add_submenus_to_xml, id);
+
+        create_node ("Merge", NULL, "files", FALSE);
+    }
 
     xmlSaveFormatFile (usermenufile, xDoc, 1);
     xmlFreeDoc (xDoc);
@@ -311,28 +331,15 @@ static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, Gtk
 
 static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-    MenuCacheType type;
-    char *id;
+    char *parent;
 
-    if (gtk_tree_path_get_depth (path) == 1)
+    if (gtk_tree_path_get_depth (path) == 2)
     {
-        // a new top-level element...
-        gtk_tree_model_get (model, iter, ITEM_ID, &id, ITEM_TYPE, &type, -1);
-
-        if (type == MENU_CACHE_TYPE_DIR)
-        {
-            // ...which is a new directory, so finish the current one...
-            create_node ("Merge", NULL, "files", FALSE);
-
-            // ...and then create the header for the new one
-            cur_node = root_node;
-            create_node ("Menu", NULL, NULL, TRUE);
-            create_node ("Name", id, NULL, FALSE);
-            create_node ("Layout", NULL, NULL, TRUE);
-            create_node ("Merge", NULL, "menus", FALSE);
-        }
+        // ignore if the parent of this item does not match the one desired
+        parent = get_parent (path);
+        if (!g_strcmp0 (parent, (char *) data)) add_item_to_xml (model, iter);
+        g_free (parent);
     }
-    else if (gtk_tree_path_get_depth (path) == 2) add_item_to_xml (model, iter);
 
     return FALSE;
 }
@@ -365,6 +372,20 @@ static void create_node (const char *name, const char *content, const char *type
     if (enter) cur_node = node;
 }
 
+static char *get_parent (GtkTreePath *path)
+{
+    GtkTreeIter this, dest;
+
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
+    if (!gtk_tree_model_iter_parent (GTK_TREE_MODEL (store), &dest, &this)) return g_strdup ("");
+    else
+    {
+        char *id;
+        gtk_tree_model_get (GTK_TREE_MODEL (store), &dest, ITEM_ID, &id, -1);
+        return g_strdup (id);
+    }
+}
+
 /*----------------------------------------------------------------------------*/
 /* Handlers for main window user interaction                                  */
 /*----------------------------------------------------------------------------*/
@@ -388,7 +409,9 @@ static void handle_item_up (GtkWidget *widget, gpointer user_data)
     gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &dest);
     gtk_tree_store_move_before (store, &this, &dest);
 
-    write_menu_xml ();
+    char *parent = get_parent (path);
+    write_menu_xml (parent);
+    g_free (parent);
 }
 
 static void handle_item_down (GtkWidget *widget, gpointer user_data)
@@ -401,7 +424,9 @@ static void handle_item_down (GtkWidget *widget, gpointer user_data)
     gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &dest);
     gtk_tree_store_move_after (store, &this, &dest);
 
-    write_menu_xml ();
+    char *parent = get_parent (path);
+    write_menu_xml (parent);
+    g_free (parent);
 }
 
 static void handle_add_separator (GtkWidget *widget, gpointer user_data)
@@ -413,7 +438,9 @@ static void handle_add_separator (GtkWidget *widget, gpointer user_data)
     gtk_tree_store_insert_after (store, &dest, NULL, &this);
     gtk_tree_store_set (store, &dest, ITEM_NAME, "______", ITEM_TYPE, MENU_CACHE_TYPE_SEP, ITEM_VISIBLE, TRUE, -1);
 
-    write_menu_xml ();
+    char *parent = get_parent (path);
+    write_menu_xml (parent);
+    g_free (parent);
 }
 
 static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
@@ -424,7 +451,9 @@ static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     gtk_tree_store_remove (store, &this);
 
-    write_menu_xml ();
+    char *parent = get_parent (path);
+    write_menu_xml (parent);
+    g_free (parent);
 }
 
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
