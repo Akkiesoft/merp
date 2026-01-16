@@ -275,7 +275,7 @@ static void write_menu_xml (char *id)
     xmlDocPtr xDoc = NULL;
     xmlXPathContextPtr xpathCtx;
     xmlXPathObjectPtr xpathObj;
-    xmlNodePtr node, child;
+    xmlNodePtr node;
     xmlChar *cont;
     char *str;
     int i;
@@ -325,26 +325,20 @@ static void write_menu_xml (char *id)
     else
     {
         // delete any current menu layout section matching the id
-        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Menu']"), xpathCtx);
-        i = 0;
-        while ((node = xpathObj->nodesetval->nodeTab[i]) != NULL)
+        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Menu']/*[local-name()='Name']"), xpathCtx);
+        if (xpathObj->nodesetval)
         {
-            child = node->children;
-            while (child)
+            for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
             {
-                if (!xmlStrcmp (child->name, XC ("Name")))
+                node = xpathObj->nodesetval->nodeTab[i];
+                cont = xmlNodeGetContent (node);
+                if (!xmlStrcmp (cont, XC (id)))
                 {
-                    cont = xmlNodeGetContent (child);
-                    if (!xmlStrcmp (cont, XC (id)))
-                    {
-                        xmlUnlinkNode (node);
-                        xmlFreeNode (node);
-                    }
-                    xmlFree (cont);
+                    xmlUnlinkNode (node->parent);
+                    xmlFreeNode (node->parent);
                 }
-                child=child->next;
+                xmlFree (cont);
             }
-            i++;
         }
         xmlXPathFreeObject (xpathObj);
 
