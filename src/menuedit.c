@@ -276,7 +276,9 @@ static void write_menu_xml (char *id)
     xmlXPathContextPtr xpathCtx;
     xmlXPathObjectPtr xpathObj;
     xmlNodePtr node;
+    xmlChar *cont
     char *str;
+    int i;
 
     LIBXML_TEST_VERSION
 
@@ -302,7 +304,7 @@ static void write_menu_xml (char *id)
     if (strlen (id) == 0)
     {
         // delete any current top-level layout section
-        xpathObj = xmlXPathEvalExpression ((xmlChar *) "/*[local-name()='Menu']/*[local-name()='Layout']", xpathCtx);
+        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Layout']"), xpathCtx);
         node = xpathObj->nodesetval->nodeTab[0];
         if (node)
         {
@@ -322,6 +324,24 @@ static void write_menu_xml (char *id)
     }
     else
     {
+        // delete any current menu layout section matching the id
+        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Menu']"), xpathCtx);
+        i = 0;
+        while ((node = xpathObj->nodesetval->nodeTab[i]) != NULL)
+        {
+            cont = xmlNodeGetContent (node->xmlChildrenNode);
+            if (!g_strcmp0 (id, (char *) cont))
+            {
+                xmlFree (cont);
+                xmlUnlinkNode (node);
+                xmlFreeNode (node);
+                break;
+            }
+            xmlFree (cont);
+            i++;
+        }
+        xmlXPathFreeObject (xpathObj);
+
         // create a new menu and layout section
         create_node ("Menu", NULL, NULL, TRUE);
         create_node ("Name", id, NULL, FALSE);
