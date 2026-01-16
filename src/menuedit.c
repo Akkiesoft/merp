@@ -273,6 +273,9 @@ static void expand_row (gpointer data, gpointer user_data)
 static void write_menu_xml (char *id)
 {
     xmlDocPtr xDoc = NULL;
+    xmlXPathContextPtr xpathCtx;
+    xmlXPathObjectPtr xpathObj;
+    xmlNodePtr node;
     char *str;
 
     LIBXML_TEST_VERSION
@@ -284,6 +287,7 @@ static void write_menu_xml (char *id)
     // read in the user file if it exists; init if not
     if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR)) xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
     if (!xDoc) xDoc = xmlNewDoc (XC ("1.0"));
+    xpathCtx = xmlXPathNewContext (xDoc);
     root_node = xmlDocGetRootElement (xDoc);
     if (root_node == NULL)
     {
@@ -297,6 +301,17 @@ static void write_menu_xml (char *id)
 
     if (strlen (id) == 0)
     {
+        // delete any current top-level layout section
+        xpathObj = xmlXPathEvalExpression ((xmlChar *) "/*[local-name()='Menu']/*[local-name()='Layout']", xpathCtx);
+        node = xpathObj->nodesetval->nodeTab[0];
+        if (node)
+        {
+            xmlUnlinkNode (node);
+            xmlFreeNode (node);
+        }
+        xmlXPathFreeObject (xpathObj);
+
+        // create a new top-level layout section
         create_node ("Layout", NULL, NULL, TRUE);
         create_node ("Merge", NULL, "menus", FALSE);
 
@@ -367,7 +382,7 @@ static void add_item_to_xml (GtkTreeModel *model, GtkTreeIter *iter)
 
 static void create_node (const char *name, const char *content, const char *type, gboolean enter)
 {
-    xmlNode *node = xmlNewNode (NULL, XC (name));
+    xmlNodePtr node = xmlNewNode (NULL, XC (name));
     if (content) xmlNodeSetContent (node, XC (content));
     if (type) xmlSetProp (node, XC ("type"), XC (type));
     xmlAddChild (cur_node, node);
