@@ -275,8 +275,8 @@ static void write_menu_xml (char *id)
     xmlDocPtr xDoc = NULL;
     xmlXPathContextPtr xpathCtx;
     xmlXPathObjectPtr xpathObj;
-    xmlNodePtr node;
-    xmlChar *cont
+    xmlNodePtr node, child;
+    xmlChar *cont;
     char *str;
     int i;
 
@@ -329,15 +329,21 @@ static void write_menu_xml (char *id)
         i = 0;
         while ((node = xpathObj->nodesetval->nodeTab[i]) != NULL)
         {
-            cont = xmlNodeGetContent (node->xmlChildrenNode);
-            if (!g_strcmp0 (id, (char *) cont))
+            child = node->children;
+            while (child)
             {
-                xmlFree (cont);
-                xmlUnlinkNode (node);
-                xmlFreeNode (node);
-                break;
+                if (!xmlStrcmp (child->name, XC ("Name")))
+                {
+                    cont = xmlNodeGetContent (child);
+                    if (!xmlStrcmp (cont, XC (id)))
+                    {
+                        xmlUnlinkNode (node);
+                        xmlFreeNode (node);
+                    }
+                    xmlFree (cont);
+                }
+                child=child->next;
             }
-            xmlFree (cont);
             i++;
         }
         xmlXPathFreeObject (xpathObj);
