@@ -303,13 +303,16 @@ static void write_menu_xml (char *id)
 
     if (strlen (id) == 0)
     {
-        // delete any current top-level layout section
+        // delete any current top-level layout sections
         xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Layout']"), xpathCtx);
-        node = xpathObj->nodesetval->nodeTab[0];
-        if (node)
+        if (xpathObj->nodesetval)
         {
-            xmlUnlinkNode (node);
-            xmlFreeNode (node);
+            for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+            {
+                node = xpathObj->nodesetval->nodeTab[i];
+                xmlUnlinkNode (node);
+                xmlFreeNode (node);
+            }
         }
         xmlXPathFreeObject (xpathObj);
 
@@ -324,7 +327,7 @@ static void write_menu_xml (char *id)
     }
     else
     {
-        // delete any current menu layout section matching the id
+        // delete any current menu layout sections matching the id
         xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Menu']/*[local-name()='Name']"), xpathCtx);
         if (xpathObj->nodesetval)
         {
