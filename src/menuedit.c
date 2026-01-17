@@ -90,6 +90,7 @@ static void handle_item_up (GtkWidget *widget, gpointer user_data);
 static void handle_item_down (GtkWidget *widget, gpointer user_data);
 static void handle_add_separator (GtkWidget *widget, gpointer user_data);
 static void handle_remove_separator (GtkWidget *widget, gpointer user_data);
+static void handle_move_to_root (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
 static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
@@ -500,6 +501,36 @@ static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
     g_free (parent);
 }
 
+static void handle_move_to_root (GtkWidget *widget, gpointer user_data)
+{
+    MenuCacheItem *item = (MenuCacheItem *) user_data;
+    GKeyFile *kf;
+    char *path, *str;
+    gsize len;
+
+    kf = g_key_file_new ();
+
+    path = menu_cache_item_get_file_path (item);
+    g_key_file_load_from_file (kf, path, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+    g_free (path);
+
+    g_key_file_set_string (kf, "Desktop Entry", "Categories", "Applications");
+
+    path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", menu_cache_item_get_file_basename (item), NULL);
+
+    str = g_path_get_dirname (path);
+    g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+    g_free (str);
+
+    str = g_key_file_to_data (kf, &len, NULL);
+    g_file_set_contents (path, str, len, NULL);
+    g_free (str);
+
+    g_free (path);
+
+    menu_cache_reload (menu_cache);
+}
+
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
 {
     MenuCacheItem *cacheitem;
@@ -544,6 +575,13 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
                 g_signal_connect (mi, "activate", G_CALLBACK (handle_add_separator), path);
             }
             gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+
+            if (type != MENU_CACHE_TYPE_SEP && gtk_tree_path_get_depth (path) == 2)
+            {
+                mi = gtk_menu_item_new_with_label (_("Move to Root"));
+                g_signal_connect (mi, "activate", G_CALLBACK (handle_move_to_root), cacheitem);
+                gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+            }
 
             gtk_widget_show_all (menu);
             gtk_menu_popup_at_pointer (GTK_MENU (menu), (GdkEvent *) &event);
