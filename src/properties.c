@@ -172,8 +172,9 @@ static void show_icon_dialog (GtkButton *, gpointer category)
     GValue val = G_VALUE_INIT;
 
     textdomain (GETTEXT_PACKAGE);
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
     idlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_icons");
+    if (main_dlg) gtk_window_set_transient_for (GTK_WINDOW (idlg), GTK_WINDOW (main_dlg));
     iv_icons = (GtkWidget *) gtk_builder_get_object (builder, "iv_icons");
     gtk_window_set_transient_for (GTK_WINDOW (idlg), GTK_WINDOW (dlg));
     gtk_window_set_destroy_with_parent (GTK_WINDOW (idlg), TRUE);
@@ -278,8 +279,9 @@ void show_properties_dialog (MenuCacheItem *item)
     char *path;
 
     textdomain (GETTEXT_PACKAGE);
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
     dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_properties");
+    if (main_dlg) gtk_window_set_transient_for (GTK_WINDOW (dlg), GTK_WINDOW (main_dlg));
     lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_target");
     lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_file");
     entry_name = (GtkWidget *) gtk_builder_get_object (builder, "entry_name");
@@ -453,8 +455,10 @@ void show_menu_dialog (MenuCacheItem *item)
     char *path;
 
     textdomain (GETTEXT_PACKAGE);
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
     dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_menu");
+    if (main_dlg) gtk_window_set_transient_for (GTK_WINDOW (dlg), GTK_WINDOW (main_dlg));
+
     lbl_target = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mtarget");
     lbl_file = (GtkWidget *) gtk_builder_get_object (builder, "lbl_mfile");
     entry_name = (GtkWidget *) gtk_builder_get_object (builder, "entry_mname");

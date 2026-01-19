@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITEM_ACTIVE     6
 #define ITEM_CBNAME     7
 
+extern GtkWidget *main_dlg;
 extern MenuCache *menu_cache;
 extern GtkTreeModelSort *categories;
 

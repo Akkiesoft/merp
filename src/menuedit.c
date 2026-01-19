@@ -49,12 +49,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Controls */
 
-static GtkWidget *main_dlg, *menu_tv, *close_btn, *new_btn;
+static GtkBuilder *builder;
+GtkWidget *main_dlg;
+static GtkWidget *menu_tv, *close_btn, *new_btn;
 static GtkTreeStore *store;
 
 /* Cache globals */
 
 MenuCache *menu_cache;
+MenuCacheDir *dir;
+MenuCacheNotifyId id;
 GtkTreeModelSort *categories;
 
 /* Scaling factor */
@@ -756,52 +760,23 @@ static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_d
     return TRUE;
 }
 
-static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+static void init_main_window (void)
 {
-    gtk_main_quit ();
-    return TRUE;
-}
-
-/*----------------------------------------------------------------------------*/
-/* Main window                                                                */
-/*----------------------------------------------------------------------------*/
-
-int main (int argc, char *argv[])
-{
-    GtkBuilder *builder;
     GtkCellRenderer *renderer;
     GtkTreeModelFilter *cat_filter;
-    MenuCacheDir *dir;
-    MenuCacheNotifyId id;
 
     // read menu prefix and get system and local filenames
     sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX"));
     usermenufile = g_strdup_printf ("%s/menus/%sapplications.menu", g_get_user_config_dir (), getenv ("XDG_MENU_PREFIX"));
 
-    // setup localisation
-    setlocale (LC_ALL, "");
-    bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
-    bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
-    textdomain (GETTEXT_PACKAGE);
-
-    // setup GTK
-    gtk_init (&argc, &argv);
-
     store = gtk_tree_store_new (8, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN, G_TYPE_STRING);
 
-    // build the UI
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/merp.ui");
-    main_dlg = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
-    close_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_ok");
     new_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_new");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
-    g_object_unref (builder);
 
     scale = gtk_widget_get_scale_factor (main_dlg);
 
     // setup handlers
-    g_signal_connect (main_dlg, "delete_event", G_CALLBACK (close_prog), NULL);
-    g_signal_connect (close_btn, "clicked", G_CALLBACK (close_prog), NULL);
     g_signal_connect (new_btn, "clicked", G_CALLBACK (handle_new_button), NULL);
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
     
@@ -836,6 +811,118 @@ int main (int argc, char *argv[])
 
     categories = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (cat_filter)));
     gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), ITEM_NAME, GTK_SORT_ASCENDING);
+}
+
+/*----------------------------------------------------------------------------*/
+/* Plugin interface */
+/*----------------------------------------------------------------------------*/
+
+#ifdef PLUGIN_NAME
+
+void init_plugin (GtkWidget *parent)
+{
+    setlocale (LC_ALL, "");
+    bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
+    bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+    textdomain (GETTEXT_PACKAGE);
+
+    main_dlg = parent;
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
+
+    init_main_window ();
+}
+
+int plugin_tabs (void)
+{
+    return 1;
+}
+
+const char *tab_name (int tab)
+{
+    switch (tab)
+    {
+        case 0 : return C_("tab", "Main Menu");
+        default : return _("No such tab");
+    }
+}
+
+const char *icon_name (int tab)
+{
+    switch (tab)
+    {
+        case 0 : return "alacarte";
+        default : return NULL;
+    }
+}
+
+const char *tab_id (int tab)
+{
+    return NULL;
+}
+
+GtkWidget *get_tab (int tab)
+{
+    GtkWidget *window, *plugin;
+
+    window = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
+    switch (tab)
+    {
+        case 0 :
+            plugin = (GtkWidget *) gtk_builder_get_object (builder, "vbox1");
+            break;
+        default :
+            plugin = NULL;
+    }
+
+    gtk_container_remove (GTK_CONTAINER (window), plugin);
+
+    return plugin;
+}
+
+gboolean reboot_needed (void)
+{
+    return FALSE;
+}
+
+void free_plugin (void)
+{
+    g_object_unref (builder);
+    menu_cache_remove_reload_notify (menu_cache, id);
+    menu_cache_unref (menu_cache);
+}
+
+#else
+
+static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    gtk_main_quit ();
+    return TRUE;
+}
+
+/*----------------------------------------------------------------------------*/
+/* Main window                                                                */
+/*----------------------------------------------------------------------------*/
+
+int main (int argc, char *argv[])
+{
+    // setup localisation
+    setlocale (LC_ALL, "");
+    bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
+    bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+    textdomain (GETTEXT_PACKAGE);
+
+    // setup GTK
+    gtk_init (&argc, &argv);
+
+    // build the UI
+    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
+    main_dlg = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
+    close_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_ok");
+
+    g_signal_connect (main_dlg, "delete_event", G_CALLBACK (close_prog), NULL);
+    g_signal_connect (close_btn, "clicked", G_CALLBACK (close_prog), NULL);
+
+    init_main_window ();
 
     gtk_widget_show_all (main_dlg);
 
@@ -848,6 +935,8 @@ int main (int argc, char *argv[])
 
     return 0;
 }
+
+#endif
 
 /* End of file                                                                */
 /*----------------------------------------------------------------------------*/
