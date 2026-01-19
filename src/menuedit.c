@@ -466,11 +466,13 @@ void remove_id_from_xml (const char *id)
         xmlXPathFreeObject (xpathObj);
 
         // add the MergeFile node to the top-level menu
-        node = xmlNewNode (NULL, XC ("MergeFile"));
-        xmlNodeSetContent (node, XC (sysmenufile));
         xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Layout']"), xpathCtx);
         if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr)
+        {
+            node = xmlNewNode (NULL, XC ("MergeFile"));
+            xmlNodeSetContent (node, XC (sysmenufile));
             xmlAddPrevSibling (xpathObj->nodesetval->nodeTab[0], node);
+        }
         xmlXPathFreeObject (xpathObj);
 
         // remove all Menu nodes which do not contain a Layout node
@@ -493,7 +495,6 @@ void remove_id_from_xml (const char *id)
         xmlXPathFreeObject (xpathObj);
 
         xmlXPathSetContextNode (xmlDocGetRootElement (xDoc), xpathCtx);
-        changed = TRUE;
     }
 
     // delete any current menu layout sections matching the id
