@@ -431,18 +431,14 @@ void remove_id_from_xml (const char *id)
 {
     xmlDocPtr xDoc = NULL;
     xmlXPathContextPtr xpathCtx;
-    xmlXPathObjectPtr xpathObj;
-    xmlNodePtr node;
+    xmlXPathObjectPtr xpathObj, xpathObj2;
+    xmlNodePtr node, root_node;
     xmlChar *cont;
     char *str;
     int i;
     gboolean changed = FALSE;
 
     LIBXML_TEST_VERSION
-
-    str = g_path_get_dirname (usermenufile);
-    g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
-    g_free (str);
 
     // read in the user file
     if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR))
@@ -469,10 +465,63 @@ void remove_id_from_xml (const char *id)
         }
         xmlXPathFreeObject (xpathObj);
 
-        if (changed) xmlSaveFormatFile (usermenufile, xDoc, 1);
-        xmlFreeDoc (xDoc);
-        xmlCleanupParser ();
+        if (changed)
+        {
+            str = g_path_get_dirname (usermenufile);
+            g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+            g_free (str);
+
+            xmlSaveFormatFile (usermenufile, xDoc, 1);
+        }
     }
+    else
+    {
+        xDoc = xmlReadFile (sysmenufile, NULL, XML_PARSE_NOBLANKS);
+        xpathCtx = xmlXPathNewContext (xDoc);
+
+        // remove all nodes other than Name and Layout from the top-level menu
+        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[not(local-name()='Name') and not(local-name()='Layout')]"), xpathCtx);
+        if (xpathObj->nodesetval)
+        {
+            for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+            {
+                node = xpathObj->nodesetval->nodeTab[i];
+                xmlUnlinkNode (node);
+                xmlFreeNode (node);
+            }
+        }
+        xmlXPathFreeObject (xpathObj);
+
+        // add the MergeFile node to the top-level menu
+        root_node = xmlDocGetRootElement (xDoc);
+        node = xmlNewNode (NULL, XC ("MergeFile"));
+        xmlNodeSetContent (node, XC (sysmenufile));
+        xmlAddChild (root_node, node);
+
+        // remove all Menu nodes which do not contain a Layout node
+        xpathObj = xmlXPathEvalExpression (XC ("//*[local-name()='Menu']"), xpathCtx);
+        if (xpathObj->nodesetval)
+        {
+            for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+            {
+                node = xpathObj->nodesetval->nodeTab[i];
+                xmlXPathSetContextNode (node, xpathCtx);
+                xpathObj2 = xmlXPathEvalExpression (XC ("./*[local-name()='Layout']"), xpathCtx);
+                if (xpathObj2->nodesetval && xpathObj2->nodesetval->nodeNr == 0)
+                {
+                    xmlUnlinkNode (node);
+                    xmlFreeNode (node);
+                }
+                xmlXPathFreeObject (xpathObj2);
+            }
+        }
+        xmlXPathFreeObject (xpathObj);
+
+        xmlSaveFormatFile (usermenufile, xDoc, 1);
+    }
+
+    xmlFreeDoc (xDoc);
+    xmlCleanupParser ();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -576,7 +625,7 @@ static void handle_move_to_root (GtkWidget *widget, gpointer user_data)
 
     g_free (path);
 
-    // remove any reference to this id from the menu XML file in any submenu layouts
+    // remove any reference to this id from the menu XML file, or it will be duplicated
     remove_id_from_xml (menu_cache_item_get_file_basename (item));
 
     menu_cache_reload (menu_cache);
