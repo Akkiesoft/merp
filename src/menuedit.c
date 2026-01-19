@@ -237,10 +237,16 @@ static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data
 static void reload_tree (MenuCache *mc, gpointer)
 {
     MenuCacheDir *dir;
-    GList *expands = NULL;
+    GtkTreeSelection *sel;
+    GtkTreeModel *model;
+    GList *expands = NULL, *selects = NULL;
 
     // store the current expanders
     gtk_tree_model_foreach (GTK_TREE_MODEL (store), store_expands, &expands);
+
+    // store the current selection
+    sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
+    if (sel) selects = gtk_tree_selection_get_selected_rows (sel, &model);
 
     // reload cache and tree view
     dir = NULL;
@@ -252,6 +258,10 @@ static void reload_tree (MenuCache *mc, gpointer)
     // restore the expanders
     g_list_foreach (expands, expand_row, NULL);
     g_list_free_full (expands, (GDestroyNotify) gtk_tree_path_free);
+
+    // restore the selection
+    if (sel && selects) gtk_tree_selection_select_path (sel, (GtkTreePath *) selects->data);
+    g_list_free_full (selects, (GDestroyNotify) gtk_tree_path_free);
 }
 
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
