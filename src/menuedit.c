@@ -445,37 +445,10 @@ void remove_id_from_xml (const char *id)
     {
         xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
         xpathCtx = xmlXPathNewContext (xDoc);
-
-        // delete any current menu layout sections matching the id
-        xpathObj = xmlXPathEvalExpression (XC ("//*[local-name()='Filename']"), xpathCtx);
-        if (xpathObj->nodesetval)
-        {
-            for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
-            {
-                node = xpathObj->nodesetval->nodeTab[i];
-                cont = xmlNodeGetContent (node);
-                if (!xmlStrcmp (cont, XC (id)))
-                {
-                    xmlUnlinkNode (node);
-                    xmlFreeNode (node);
-                    changed = TRUE;
-                }
-                xmlFree (cont);
-            }
-        }
-        xmlXPathFreeObject (xpathObj);
-
-        if (changed)
-        {
-            str = g_path_get_dirname (usermenufile);
-            g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
-            g_free (str);
-
-            xmlSaveFormatFile (usermenufile, xDoc, 1);
-        }
     }
     else
     {
+        // no user file - read in the system file and manipulate it
         xDoc = xmlReadFile (sysmenufile, NULL, XML_PARSE_NOBLANKS);
         xpathCtx = xmlXPathNewContext (xDoc);
 
@@ -516,6 +489,35 @@ void remove_id_from_xml (const char *id)
             }
         }
         xmlXPathFreeObject (xpathObj);
+
+        xmlXPathSetContextNode (root_node, xpathCtx);
+        changed = TRUE;
+    }
+
+    // delete any current menu layout sections matching the id
+    xpathObj = xmlXPathEvalExpression (XC ("//*[local-name()='Filename']"), xpathCtx);
+    if (xpathObj->nodesetval)
+    {
+        for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+        {
+            node = xpathObj->nodesetval->nodeTab[i];
+            cont = xmlNodeGetContent (node);
+            if (!xmlStrcmp (cont, XC (id)))
+            {
+                xmlUnlinkNode (node);
+                xmlFreeNode (node);
+                changed = TRUE;
+            }
+            xmlFree (cont);
+        }
+    }
+    xmlXPathFreeObject (xpathObj);
+
+    if (changed)
+    {
+        str = g_path_get_dirname (usermenufile);
+        g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+        g_free (str);
 
         xmlSaveFormatFile (usermenufile, xDoc, 1);
     }
