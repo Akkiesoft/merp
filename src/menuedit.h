@@ -39,6 +39,8 @@ extern GtkTreeModelSort *categories;
 
 extern void show_properties_dialog (MenuCacheItem *item);
 extern void show_menu_dialog (MenuCacheItem *item);
+extern void remove_id_from_xml (const char *id);
+
 
 /* End of file                                                                */
 /*----------------------------------------------------------------------------*/

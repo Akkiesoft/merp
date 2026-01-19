@@ -409,7 +409,12 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
     {
         gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, ITEM_ID, &cat, -1);
-        update |= update_string_if_changed (kf, "Categories", cat);
+        if (update_string_if_changed (kf, "Categories", cat))
+        {
+            // remove any reference to this id from the menu XML file, or it will be duplicated
+            remove_id_from_xml (str);
+            update = TRUE;
+        }
     }
 
     // write to the override in local

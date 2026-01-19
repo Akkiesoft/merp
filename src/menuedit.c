@@ -427,6 +427,54 @@ static char *get_parent (GtkTreePath *path)
     }
 }
 
+void remove_id_from_xml (const char *id)
+{
+    xmlDocPtr xDoc = NULL;
+    xmlXPathContextPtr xpathCtx;
+    xmlXPathObjectPtr xpathObj;
+    xmlNodePtr node;
+    xmlChar *cont;
+    char *str;
+    int i;
+    gboolean changed = FALSE;
+
+    LIBXML_TEST_VERSION
+
+    str = g_path_get_dirname (usermenufile);
+    g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
+    g_free (str);
+
+    // read in the user file
+    if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR))
+    {
+        xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
+        xpathCtx = xmlXPathNewContext (xDoc);
+
+        // delete any current menu layout sections matching the id
+        xpathObj = xmlXPathEvalExpression (XC ("//*[local-name()='Filename']"), xpathCtx);
+        if (xpathObj->nodesetval)
+        {
+            for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
+            {
+                node = xpathObj->nodesetval->nodeTab[i];
+                cont = xmlNodeGetContent (node);
+                if (!xmlStrcmp (cont, XC (id)))
+                {
+                    xmlUnlinkNode (node);
+                    xmlFreeNode (node);
+                    changed = TRUE;
+                }
+                xmlFree (cont);
+            }
+        }
+        xmlXPathFreeObject (xpathObj);
+
+        if (changed) xmlSaveFormatFile (usermenufile, xDoc, 1);
+        xmlFreeDoc (xDoc);
+        xmlCleanupParser ();
+    }
+}
+
 /*----------------------------------------------------------------------------*/
 /* Handlers for main window user interaction                                  */
 /*----------------------------------------------------------------------------*/
@@ -527,6 +575,9 @@ static void handle_move_to_root (GtkWidget *widget, gpointer user_data)
     g_free (str);
 
     g_free (path);
+
+    // remove any reference to this id from the menu XML file in any submenu layouts
+    remove_id_from_xml (menu_cache_item_get_file_basename (item));
 
     menu_cache_reload (menu_cache);
 }
