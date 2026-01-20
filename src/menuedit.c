@@ -51,7 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static GtkBuilder *builder;
 GtkWidget *main_dlg;
-static GtkWidget *menu_tv, *new_btn, *scroll, *edit_btn, *up_btn, *dn_btn;
+static GtkWidget *menu_tv, *new_btn, *scroll, *edit_btn, *up_btn, *dn_btn, *root_btn;
 static GtkTreeStore *store;
 
 /* Cache globals */
@@ -106,6 +106,7 @@ static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_d
 static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+static gboolean handle_root_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data);
 static void init_main_window (void);
 #ifndef PLUGIN_NAME
@@ -864,6 +865,21 @@ static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
     return TRUE;
 }
 
+static gboolean handle_root_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    GtkTreeSelection *sel;
+    GtkTreeIter iter;
+    MenuCacheItem *cacheitem;
+
+    sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
+    if (sel && gtk_tree_selection_get_selected (sel, NULL, &iter))
+    {
+        gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, -1);
+        handle_move_to_root (NULL, cacheitem);
+    }
+    return TRUE;
+}
+
 static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
 {
     GtkTreePath *path;
@@ -875,6 +891,7 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
     gtk_widget_set_sensitive (edit_btn, FALSE);
     gtk_widget_set_sensitive (up_btn, FALSE);
     gtk_widget_set_sensitive (dn_btn, FALSE);
+    gtk_widget_set_sensitive (root_btn, FALSE);
 
     rows = gtk_tree_selection_get_selected_rows (sel, NULL);
     if (rows)
@@ -884,9 +901,13 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
         gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
         if (type != MENU_CACHE_TYPE_SEP)
+        {
             gtk_widget_set_sensitive (edit_btn, TRUE);
 
-        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+            if (gtk_tree_path_get_depth (path) == 2)
+                gtk_widget_set_sensitive (root_btn, TRUE);
+        }
+
         if (gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
             gtk_widget_set_sensitive (up_btn, TRUE);
 
@@ -913,6 +934,7 @@ static void init_main_window (void)
     edit_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_edit");
     up_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_up");
     dn_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_down");
+    root_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_root");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
     scroll = (GtkWidget *) gtk_builder_get_object (builder, "scroll");
 
@@ -923,6 +945,7 @@ static void init_main_window (void)
     g_signal_connect (edit_btn, "clicked", G_CALLBACK (handle_edit_button), NULL);
     g_signal_connect (up_btn, "clicked", G_CALLBACK (handle_up_button), NULL);
     g_signal_connect (dn_btn, "clicked", G_CALLBACK (handle_down_button), NULL);
+    g_signal_connect (root_btn, "clicked", G_CALLBACK (handle_root_button), NULL);
     g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv)), "changed", G_CALLBACK (handle_selection_changed), NULL);
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
     
