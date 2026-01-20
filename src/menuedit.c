@@ -76,6 +76,7 @@ xmlNode *root_node, *cur_node;
 /* Used to preserve the scroll of the tree view when redrawing */
 
 gdouble tv_scroll;
+gboolean rescroll = FALSE;
 
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
@@ -284,7 +285,7 @@ static void reload_tree (MenuCache *mc, gpointer)
     g_list_free_full (selects, (GDestroyNotify) gtk_tree_path_free);
 
     // restore the scroll
-    g_signal_connect (menu_tv, "size-allocate", G_CALLBACK (set_scroll), NULL);
+    rescroll = TRUE;
 }
 
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
@@ -302,7 +303,11 @@ static void expand_row (gpointer data, gpointer user_data)
 
 static void set_scroll (GtkWidget *wid, GtkAllocation *alloc, gpointer user_data)
 {
-    gtk_adjustment_set_value (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scroll)), tv_scroll);
+    if (rescroll)
+    {
+        gtk_adjustment_set_value (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scroll)), tv_scroll);
+        rescroll = FALSE;
+    }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -948,6 +953,7 @@ static void init_main_window (void)
     g_signal_connect (root_btn, "clicked", G_CALLBACK (handle_root_button), NULL);
     g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv)), "changed", G_CALLBACK (handle_selection_changed), NULL);
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
+    g_signal_connect (menu_tv, "size-allocate", G_CALLBACK (set_scroll), NULL);
     
     // setup tree view
     renderer = gtk_cell_renderer_toggle_new ();
