@@ -696,10 +696,16 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
             mi = gtk_menu_item_new_with_label (_("Move Item Up"));
             g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
             gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+            gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+            if (!gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
+                gtk_widget_set_sensitive (mi, FALSE);
 
             mi = gtk_menu_item_new_with_label (_("Move Item Down"));
             g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), path);
             gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+            gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+            if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
+                gtk_widget_set_sensitive (mi, FALSE);
 
             if (type == MENU_CACHE_TYPE_SEP)
             {
