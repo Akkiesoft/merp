@@ -51,7 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static GtkBuilder *builder;
 GtkWidget *main_dlg;
-static GtkWidget *menu_tv, *new_btn, *scroll;
+static GtkWidget *menu_tv, *new_btn, *scroll, *edit_btn, *up_btn, *dn_btn;
 static GtkTreeStore *store;
 
 /* Cache globals */
@@ -103,6 +103,11 @@ static void handle_move_to_root (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
 static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data);
+static void init_main_window (void);
 #ifndef PLUGIN_NAME
 static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 #endif
@@ -679,6 +684,7 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
     if (event.type == GDK_BUTTON_PRESS && event.button == 3)
     {
         gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (self), event.x, event.y, &path, NULL, NULL, NULL);
+        // this path leaks...
         if (path)
         {
             gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
@@ -686,12 +692,10 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
 
             menu = gtk_menu_new ();
 
-            if (type != MENU_CACHE_TYPE_SEP)
-            {
-                mi = gtk_menu_item_new_with_label (_("Edit Item"));
-                g_signal_connect (mi, "activate", G_CALLBACK (handle_edit_item), cacheitem);
-                gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-            }
+            mi = gtk_menu_item_new_with_label (_("Edit Item"));
+            g_signal_connect (mi, "activate", G_CALLBACK (handle_edit_item), cacheitem);
+            gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+            gtk_widget_set_sensitive (mi, type != MENU_CACHE_TYPE_SEP);
 
             mi = gtk_menu_item_new_with_label (_("Move Item Up"));
             g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
@@ -784,6 +788,112 @@ static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_d
     return TRUE;
 }
 
+static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    GtkTreeSelection *sel;
+    GtkTreeIter iter;
+    MenuCacheItem *cacheitem;
+
+    sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
+    if (sel && gtk_tree_selection_get_selected (sel, NULL, &iter))
+    {
+        gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, -1);
+        switch (menu_cache_item_get_type (cacheitem))
+        {
+            case MENU_CACHE_TYPE_DIR :  show_menu_dialog (cacheitem);
+                                        break;
+            case MENU_CACHE_TYPE_APP :  show_properties_dialog (cacheitem);
+                                        break;
+            default :                   break;
+        }
+    }
+    return TRUE;
+}
+
+static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    GtkTreeSelection *sel;
+    GtkTreeIter this, dest;
+    GtkTreePath *path;
+    char *parent;
+    GList *rows;
+
+    sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
+    if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
+    {
+        path = (GtkTreePath *) rows->data;
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
+        dest = this;
+        gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &dest);
+        gtk_tree_store_move_before (store, &this, &dest);
+
+        parent = get_parent (path);
+        write_menu_xml (parent);
+        g_free (parent);
+        g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
+    }
+    return TRUE;
+}
+
+static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    GtkTreeSelection *sel;
+    GtkTreeIter this, dest;
+    GtkTreePath *path;
+    char *parent;
+    GList *rows;
+
+    sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
+    if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
+    {
+        path = (GtkTreePath *) rows->data;
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
+        dest = this;
+        gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &dest);
+        gtk_tree_store_move_after (store, &this, &dest);
+
+        parent = get_parent (path);
+        write_menu_xml (parent);
+        g_free (parent);
+        g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
+    }
+    return TRUE;
+}
+
+static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
+{
+    GtkTreePath *path;
+    GtkTreeIter iter;
+    GList *rows;
+    MenuCacheItem *cacheitem;
+    MenuCacheType type;
+
+    gtk_widget_set_sensitive (edit_btn, FALSE);
+    gtk_widget_set_sensitive (up_btn, FALSE);
+    gtk_widget_set_sensitive (dn_btn, FALSE);
+
+    rows = gtk_tree_selection_get_selected_rows (sel, NULL);
+    if (rows)
+    {
+        path = (GtkTreePath *) rows->data;
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+        gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
+
+        if (type != MENU_CACHE_TYPE_SEP)
+            gtk_widget_set_sensitive (edit_btn, TRUE);
+
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+        if (gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
+            gtk_widget_set_sensitive (up_btn, TRUE);
+
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+        if (gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
+            gtk_widget_set_sensitive (dn_btn, TRUE);
+
+        g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
+    }
+}
+
 static void init_main_window (void)
 {
     GtkCellRenderer *renderer;
@@ -796,6 +906,9 @@ static void init_main_window (void)
     store = gtk_tree_store_new (8, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN, G_TYPE_STRING);
 
     new_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_new");
+    edit_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_edit");
+    up_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_up");
+    dn_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_down");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
     scroll = (GtkWidget *) gtk_builder_get_object (builder, "scroll");
 
@@ -803,6 +916,10 @@ static void init_main_window (void)
 
     // setup handlers
     g_signal_connect (new_btn, "clicked", G_CALLBACK (handle_new_button), NULL);
+    g_signal_connect (edit_btn, "clicked", G_CALLBACK (handle_edit_button), NULL);
+    g_signal_connect (up_btn, "clicked", G_CALLBACK (handle_up_button), NULL);
+    g_signal_connect (dn_btn, "clicked", G_CALLBACK (handle_down_button), NULL);
+    g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv)), "changed", G_CALLBACK (handle_selection_changed), NULL);
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
     
     // setup tree view
@@ -889,11 +1006,11 @@ GtkWidget *get_tab (int tab)
 {
     GtkWidget *window, *plugin;
 
-    window = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
+    window = (GtkWidget *) gtk_builder_get_object (builder, "vbox1");
     switch (tab)
     {
         case 0 :
-            plugin = (GtkWidget *) gtk_builder_get_object (builder, "vbox1");
+            plugin = (GtkWidget *) gtk_builder_get_object (builder, "hbox1");
             break;
         default :
             plugin = NULL;
