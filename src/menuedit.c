@@ -51,7 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static GtkBuilder *builder;
 GtkWidget *main_dlg;
-static GtkWidget *menu_tv, *close_btn, *new_btn;
+static GtkWidget *menu_tv, *new_btn, *scroll;
 static GtkTreeStore *store;
 
 /* Cache globals */
@@ -73,6 +73,10 @@ char *sysmenufile, *usermenufile;
 
 xmlNode *root_node, *cur_node;
 
+/* Used to preserve the scroll of the tree view when redrawing */
+
+gdouble tv_scroll;
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -83,6 +87,7 @@ static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void expand_row (gpointer data, gpointer user_data);
+static void set_scroll (GtkWidget *wid, GtkAllocation *alloc, gpointer user_data);
 static void write_menu_xml (char *id);
 static gboolean add_toplevel_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static gboolean add_submenus_to_xml (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
@@ -98,7 +103,9 @@ static void handle_move_to_root (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
 static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+#ifndef PLUGIN_NAME
 static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+#endif
 
 /*----------------------------------------------------------------------------*/
 /* Loading menu cache                                                         */
@@ -252,6 +259,9 @@ static void reload_tree (MenuCache *mc, gpointer)
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
     if (sel) selects = gtk_tree_selection_get_selected_rows (sel, &model);
 
+    // store the current scroll
+    tv_scroll = gtk_adjustment_get_value (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scroll)));
+
     // reload cache and tree view
     dir = NULL;
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
@@ -266,6 +276,9 @@ static void reload_tree (MenuCache *mc, gpointer)
     // restore the selection
     if (sel && selects) gtk_tree_selection_select_path (sel, (GtkTreePath *) selects->data);
     g_list_free_full (selects, (GDestroyNotify) gtk_tree_path_free);
+
+    // restore the scroll
+    g_signal_connect (menu_tv, "size-allocate", G_CALLBACK (set_scroll), NULL);
 }
 
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
@@ -279,6 +292,11 @@ static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
 static void expand_row (gpointer data, gpointer user_data)
 {
     gtk_tree_view_expand_row (GTK_TREE_VIEW (menu_tv), (GtkTreePath *) data, FALSE);
+}
+
+static void set_scroll (GtkWidget *wid, GtkAllocation *alloc, gpointer user_data)
+{
+    gtk_adjustment_set_value (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scroll)), tv_scroll);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -773,6 +791,7 @@ static void init_main_window (void)
 
     new_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_new");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
+    scroll = (GtkWidget *) gtk_builder_get_object (builder, "scroll");
 
     scale = gtk_widget_get_scale_factor (main_dlg);
 
@@ -905,6 +924,8 @@ static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
 
 int main (int argc, char *argv[])
 {
+    GtkWidget *close_btn;
+
     // setup localisation
     setlocale (LC_ALL, "");
     bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
