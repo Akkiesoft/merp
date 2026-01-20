@@ -831,6 +831,8 @@ static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_da
         write_menu_xml (parent);
         g_free (parent);
         g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
+
+        handle_selection_changed (sel, NULL);
     }
     return TRUE;
 }
@@ -856,6 +858,8 @@ static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
         write_menu_xml (parent);
         g_free (parent);
         g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
+
+        handle_selection_changed (sel, NULL);
     }
     return TRUE;
 }
