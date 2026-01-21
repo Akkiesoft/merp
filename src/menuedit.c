@@ -110,7 +110,9 @@ static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
 static gboolean handle_root_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data);
 static void init_main_window (void);
-#ifndef PLUGIN_NAME
+#ifdef PLUGIN_NAME
+static gboolean open_matching_id (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
+#else
 static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 #endif
 
@@ -698,19 +700,19 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
 
             menu = gtk_menu_new ();
 
-            mi = gtk_menu_item_new_with_label (_("Edit Item"));
+            mi = gtk_menu_item_new_with_label (_("Edit Item..."));
             g_signal_connect (mi, "activate", G_CALLBACK (handle_edit_item), cacheitem);
             gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
             gtk_widget_set_sensitive (mi, type != MENU_CACHE_TYPE_SEP);
 
-            mi = gtk_menu_item_new_with_label (_("Move Item Up"));
+            mi = gtk_menu_item_new_with_label (_("Move Up"));
             g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
             gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
             gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
             if (!gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
                 gtk_widget_set_sensitive (mi, FALSE);
 
-            mi = gtk_menu_item_new_with_label (_("Move Item Down"));
+            mi = gtk_menu_item_new_with_label (_("Move Down"));
             g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), path);
             gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
             gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
@@ -1032,7 +1034,11 @@ const char *icon_name (int tab)
 
 const char *tab_id (int tab)
 {
-    return NULL;
+    switch (tab)
+    {
+        case 0 : return ("main_menu");
+        default : return NULL;
+    }
 }
 
 GtkWidget *get_tab (int tab)
@@ -1064,6 +1070,26 @@ void free_plugin (void)
     g_object_unref (builder);
     menu_cache_remove_reload_notify (menu_cache, id);
     menu_cache_unref (menu_cache);
+}
+
+
+void on_menu_edit (char *id)
+{
+    gtk_tree_model_foreach (GTK_TREE_MODEL (store), open_matching_id, id);
+}
+
+static gboolean open_matching_id (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
+{
+    MenuCacheItem *item;
+    char *id;
+
+    gtk_tree_model_get (GTK_TREE_MODEL (store), iter, ITEM_ID, &id, ITEM_POINTER, &item, -1);
+    if (!g_strcmp0 ((char *) data, id))
+    {
+        show_properties_dialog (item);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 #else
