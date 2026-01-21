@@ -260,18 +260,19 @@
     <property name="skip-taskbar-hint">True</property>
     <property name="skip-pager-hint">True</property>
     <child>
-      <object class="GtkBox">
+      <object class="GtkBox" id="menu_dlg_box">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">5</property>
         <child>
-          <object class="GtkBox">
+          <object class="GtkBox" id="menu_dlg_subbox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="orientation">vertical</property>
+            <property name="spacing">5</property>
             <child>
-              <object class="GtkBox" id="box11">
+              <object class="GtkBox" id="menu_box_file">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="spacing">5</property>
@@ -308,7 +309,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox">
+              <object class="GtkBox" id="menu_box_icon_id">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="spacing">10</property>
@@ -338,33 +339,83 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox" id="box13">
+                  <object class="GtkBox" id="menu_box_id_cat">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="spacing">5</property>
+                    <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkLabel">
+                      <object class="GtkBox" id="menu_box_id">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">ID:</property>
-                        <property name="xalign">0</property>
+                        <property name="spacing">5</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">ID:</property>
+                            <property name="xalign">0</property>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="lbl_mfile">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">label</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="pack-type">end</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
-                        <property name="expand">True</property>
+                        <property name="expand">False</property>
                         <property name="fill">True</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="lbl_mfile">
+                      <object class="GtkBox" id="menu_box_cat">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">label</property>
+                        <property name="spacing">5</property>
+                        <child>
+                          <object class="GtkLabel" id="lbl_name1">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">Name:</property>
+                            <property name="xalign">0</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="entry_mname">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="width-chars">25</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="pack-type">end</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="pack-type">end</property>
                         <property name="position">1</property>
                       </packing>
                     </child>
@@ -381,44 +432,6 @@
                 <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkBox" id="box10">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="spacing">5</property>
-                <child>
-                  <object class="GtkLabel" id="lbl_name1">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Name:</property>
-                    <property name="xalign">0</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkEntry" id="entry_mname">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="width-chars">25</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="pack-type">end</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
               </packing>
             </child>
           </object>
@@ -487,6 +500,14 @@
       </object>
     </child>
   </object>
+  <object class="GtkSizeGroup">
+    <property name="mode">vertical</property>
+    <widgets>
+      <widget name="menu_box_file"/>
+      <widget name="menu_box_id"/>
+      <widget name="menu_box_cat"/>
+    </widgets>
+  </object>
   <object class="GtkWindow" id="wd_properties">
     <property name="can-focus">False</property>
     <property name="border-width">10</property>
@@ -497,19 +518,19 @@
     <property name="skip-taskbar-hint">True</property>
     <property name="skip-pager-hint">True</property>
     <child>
-      <object class="GtkBox">
+      <object class="GtkBox" id="item_dlg_box">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">5</property>
         <child>
-          <object class="GtkBox">
+          <object class="GtkBox" id="item_dlg_subbox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="orientation">vertical</property>
             <property name="spacing">5</property>
             <child>
-              <object class="GtkBox" id="box3">
+              <object class="GtkBox" id="item_box_file">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="spacing">5</property>
@@ -546,7 +567,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox">
+              <object class="GtkBox" id="item_box_icon_id">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="spacing">10</property>
@@ -576,13 +597,13 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox">
+                  <object class="GtkBox" id="item_box_id_cat">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="orientation">vertical</property>
                     <property name="spacing">5</property>
                     <child>
-                      <object class="GtkBox" id="box1">
+                      <object class="GtkBox" id="item_box_id">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="spacing">5</property>
@@ -643,7 +664,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkBox" id="box2">
+                      <object class="GtkBox" id="item_box_cat">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="spacing">5</property>
@@ -986,10 +1007,10 @@
   <object class="GtkSizeGroup">
     <property name="mode">vertical</property>
     <widgets>
-      <widget name="box1"/>
-      <widget name="box2"/>
+      <widget name="item_box_id"/>
+      <widget name="item_box_cat"/>
       <widget name="box4"/>
-      <widget name="box3"/>
+      <widget name="item_box_file"/>
       <widget name="box5"/>
       <widget name="box6"/>
       <widget name="box7"/>

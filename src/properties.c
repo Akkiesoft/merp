@@ -293,7 +293,7 @@ void show_properties_dialog (MenuCacheItem *item)
     sw_notif = (GtkWidget *) gtk_builder_get_object (builder, "sw_notif");
     sw_terminal = (GtkWidget *) gtk_builder_get_object (builder, "sw_terminal");
     cb_category = (GtkWidget *) gtk_builder_get_object (builder, "cb_category");
-    box_path = (GtkWidget *) gtk_builder_get_object (builder, "box3");
+    box_path = (GtkWidget *) gtk_builder_get_object (builder, "item_box_file");
 
     gtk_combo_box_set_model (GTK_COMBO_BOX (cb_category), GTK_TREE_MODEL (categories));
     rend = gtk_cell_renderer_text_new ();
