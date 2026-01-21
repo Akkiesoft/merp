@@ -579,10 +579,14 @@ void remove_id_from_xml (const char *id)
 static void handle_edit_item (GtkWidget *widget, gpointer user_data)
 {
     MenuCacheItem *cacheitem = (MenuCacheItem *) user_data;
-    if (menu_cache_item_get_type (cacheitem) == MENU_CACHE_TYPE_APP)
-        show_properties_dialog (cacheitem);
-    else
-        show_menu_dialog (cacheitem);
+    switch (menu_cache_item_get_type (cacheitem))
+    {
+        case MENU_CACHE_TYPE_DIR :  show_menu_dialog (cacheitem);
+                                    break;
+        case MENU_CACHE_TYPE_APP :  show_properties_dialog (cacheitem);
+                                    break;
+        default :                   break;
+    }
 }
 
 static void handle_item_up (GtkWidget *widget, gpointer user_data)
@@ -804,14 +808,7 @@ static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
     if (sel && gtk_tree_selection_get_selected (sel, NULL, &iter))
     {
         gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, -1);
-        switch (menu_cache_item_get_type (cacheitem))
-        {
-            case MENU_CACHE_TYPE_DIR :  show_menu_dialog (cacheitem);
-                                        break;
-            case MENU_CACHE_TYPE_APP :  show_properties_dialog (cacheitem);
-                                        break;
-            default :                   break;
-        }
+        handle_edit_item (NULL, cacheitem);
     }
     return TRUE;
 }
@@ -819,23 +816,14 @@ static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
 static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
 {
     GtkTreeSelection *sel;
-    GtkTreeIter this, dest;
     GtkTreePath *path;
-    char *parent;
     GList *rows;
 
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
     if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
     {
         path = (GtkTreePath *) rows->data;
-        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
-        dest = this;
-        gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &dest);
-        gtk_tree_store_move_before (store, &this, &dest);
-
-        parent = get_parent (path);
-        write_menu_xml (parent);
-        g_free (parent);
+        handle_item_up (NULL, path);
         g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
 
         handle_selection_changed (sel, NULL);
@@ -846,23 +834,14 @@ static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_da
 static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
 {
     GtkTreeSelection *sel;
-    GtkTreeIter this, dest;
     GtkTreePath *path;
-    char *parent;
     GList *rows;
 
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
     if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
     {
         path = (GtkTreePath *) rows->data;
-        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
-        dest = this;
-        gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &dest);
-        gtk_tree_store_move_after (store, &this, &dest);
-
-        parent = get_parent (path);
-        write_menu_xml (parent);
-        g_free (parent);
+        handle_item_down (NULL, path);
         g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
 
         handle_selection_changed (sel, NULL);
