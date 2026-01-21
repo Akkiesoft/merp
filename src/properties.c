@@ -58,7 +58,7 @@ static char *icon_name;
 /*----------------------------------------------------------------------------*/
 
 static void show_icon (const char *name, GtkWidget *img);
-static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value);
+static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value, gboolean contains);
 static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget *widget);
 static void dialog_cancel (GtkButton *, gpointer);
@@ -98,14 +98,14 @@ static void show_icon (const char *name, GtkWidget *img)
     g_object_unref (pixbuf);
 }
 
-static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value)
+static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value, gboolean contains)
 {
     char *str;
     gboolean update = FALSE;
 
     str = g_key_file_get_string (kf, "Desktop Entry", param, NULL);
     if (!str && (!value || value[0] == 0)) return FALSE;
-    if (g_strcmp0 (value, str))
+    if ((contains == FALSE && g_strcmp0 (value, str)) || !strstr (str, value))
     {
         g_key_file_set_string (kf, "Desktop Entry", param, value);
         update = TRUE;
@@ -148,7 +148,7 @@ static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget
     g_free (str);
 
     ent = gtk_entry_get_text (GTK_ENTRY (widget));
-    update = update_string_if_changed (kf, lcparam, ent);
+    update = update_string_if_changed (kf, lcparam, ent, FALSE);
 
     g_free (lcparam);
     return update;
@@ -406,12 +406,12 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     update |= update_changed_entry (kf, "Path", entry_dir);
     update |= update_bool_if_changed (kf, "StartupNotify", sw_notif);
     update |= update_bool_if_changed (kf, "Terminal", sw_terminal);
-    update |= update_string_if_changed (kf, "Icon", icon_name);
+    update |= update_string_if_changed (kf, "Icon", icon_name, FALSE);
 
     if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
     {
         gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, ITEM_ID, &cat, -1);
-        if (update_string_if_changed (kf, "Categories", cat))
+        if (update_string_if_changed (kf, "Categories", cat, TRUE))
         {
             // remove any reference to this id from the menu XML file, or it will be duplicated
             remove_id_from_xml (str);
@@ -503,7 +503,7 @@ static void menu_dialog_ok (GtkButton *, gpointer user_data)
 
     update = FALSE;
     update |= update_changed_entry (kf, "Name", entry_name);
-    update |= update_string_if_changed (kf, "Icon", icon_name);
+    update |= update_string_if_changed (kf, "Icon", icon_name, FALSE);
 
     // write to the override in local
     if (update)
