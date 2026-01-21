@@ -57,7 +57,6 @@ static GtkTreeStore *store;
 /* Cache globals */
 
 MenuCache *menu_cache;
-MenuCacheDir *dir;
 MenuCacheNotifyId id;
 GtkTreeModelSort *categories;
 
@@ -130,6 +129,9 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     const char *name, *id, *icon_name;
     char *markup, *esc;
     gboolean vis;
+
+    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
+    menu_cache_item_unref ((MenuCacheItem *) dir);
 
     children = menu_cache_dir_list_children (dir);
     if (!children) return FALSE;
@@ -256,7 +258,6 @@ static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data
 
 static void reload_tree (MenuCache *mc, gpointer)
 {
-    MenuCacheDir *dir;
     GtkTreeSelection *sel;
     GtkTreeModel *model;
     GList *expands = NULL, *selects = NULL;
@@ -272,11 +273,8 @@ static void reload_tree (MenuCache *mc, gpointer)
     tv_scroll = gtk_adjustment_get_value (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scroll)));
 
     // reload cache and tree view
-    dir = NULL;
-    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     gtk_tree_store_clear (store);
-    load_menu (dir, NULL);
-    menu_cache_item_unref ((MenuCacheItem *) dir);
+    load_menu (NULL, NULL);
 
     // restore the expanders
     g_list_foreach (expands, expand_row, NULL);
@@ -978,10 +976,7 @@ static void init_main_window (void)
     menu_cache = menu_cache_lookup ("applications.menu+hidden");
     id = menu_cache_add_reload_notify (menu_cache, reload_tree, NULL);
 
-    dir = NULL;
-    while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
-    load_menu (dir, NULL);
-    menu_cache_item_unref ((MenuCacheItem *) dir);
+    load_menu (NULL, NULL);
 
     cat_filter = GTK_TREE_MODEL_FILTER (gtk_tree_model_filter_new (GTK_TREE_MODEL (store), NULL));
     gtk_tree_model_filter_set_visible_func (cat_filter, (GtkTreeModelFilterVisibleFunc) only_dirs, NULL, NULL);
