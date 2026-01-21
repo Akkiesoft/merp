@@ -109,9 +109,7 @@ static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
 static gboolean handle_root_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data);
 static void init_main_window (void);
-#ifdef PLUGIN_NAME
-static gboolean open_matching_id (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
-#else
+#ifndef PLUGIN_NAME
 static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 #endif
 
@@ -1046,24 +1044,10 @@ void free_plugin (void)
     menu_cache_unref (menu_cache);
 }
 
-
 void on_menu_edit (char *id)
 {
-    gtk_tree_model_foreach (GTK_TREE_MODEL (store), open_matching_id, id);
-}
-
-static gboolean open_matching_id (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
-{
-    MenuCacheItem *item;
-    char *id;
-
-    gtk_tree_model_get (GTK_TREE_MODEL (store), iter, ITEM_ID, &id, ITEM_POINTER, &item, -1);
-    if (!g_strcmp0 ((char *) data, id))
-    {
-        show_properties_dialog (item);
-        return TRUE;
-    }
-    return FALSE;
+    MenuCacheItem *item = menu_cache_find_item_by_id (menu_cache, id);
+    if (item) show_properties_dialog (item);
 }
 
 #else
