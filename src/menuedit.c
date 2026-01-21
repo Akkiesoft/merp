@@ -51,7 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static GtkBuilder *builder;
 GtkWidget *main_dlg;
-static GtkWidget *menu_tv, *new_btn, *scroll, *edit_btn, *up_btn, *dn_btn, *root_btn;
+static GtkWidget *menu_tv, *new_btn, *scroll, *edit_btn, *up_btn, *dn_btn, *root_btn, *sep_btn;
 static GtkTreeStore *store;
 
 /* Cache globals */
@@ -98,8 +98,7 @@ static void add_item_to_xml (GtkTreeModel *model, GtkTreeIter *iter);
 static void handle_edit_item (GtkWidget *widget, gpointer user_data);
 static void handle_item_up (GtkWidget *widget, gpointer user_data);
 static void handle_item_down (GtkWidget *widget, gpointer user_data);
-static void handle_add_separator (GtkWidget *widget, gpointer user_data);
-static void handle_remove_separator (GtkWidget *widget, gpointer user_data);
+static void handle_toggle_separator (GtkWidget *widget, gpointer user_data);
 static void handle_move_to_root (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
@@ -639,29 +638,21 @@ static void handle_item_down (GtkWidget *widget, gpointer user_data)
     g_free (parent);
 }
 
-static void handle_add_separator (GtkWidget *widget, gpointer user_data)
+static void handle_toggle_separator (GtkWidget *widget, gpointer user_data)
 {
     GtkTreePath *path = (GtkTreePath *) user_data;
     GtkTreeIter this, dest;
+    MenuCacheType type;
     char *parent;
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
-    gtk_tree_store_insert_after (store, &dest, NULL, &this);
-    gtk_tree_store_set (store, &dest, ITEM_NAME, "______", ITEM_TYPE, MENU_CACHE_TYPE_SEP, ITEM_VISIBLE, TRUE, -1);
-
-    parent = get_parent (path);
-    write_menu_xml (parent);
-    g_free (parent);
-}
-
-static void handle_remove_separator (GtkWidget *widget, gpointer user_data)
-{
-    GtkTreePath *path = (GtkTreePath *) user_data;
-    GtkTreeIter this;
-    char *parent;
-
-    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
-    gtk_tree_store_remove (store, &this);
+    gtk_tree_model_get (GTK_TREE_MODEL (store), &this, ITEM_TYPE, &type, -1);
+    if (type == MENU_CACHE_TYPE_SEP) gtk_tree_store_remove (store, &this);
+    else
+    {
+        gtk_tree_store_insert_after (store, &dest, NULL, &this);
+        gtk_tree_store_set (store, &dest, ITEM_NAME, "______", ITEM_TYPE, MENU_CACHE_TYPE_SEP, ITEM_VISIBLE, TRUE, -1);
+    }
 
     parent = get_parent (path);
     write_menu_xml (parent);
@@ -739,16 +730,8 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
             if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
                 gtk_widget_set_sensitive (mi, FALSE);
 
-            if (type == MENU_CACHE_TYPE_SEP)
-            {
-                mi = gtk_menu_item_new_with_label (_("Remove Separator"));
-                g_signal_connect (mi, "activate", G_CALLBACK (handle_remove_separator), path);
-            }
-            else
-            {
-                mi = gtk_menu_item_new_with_label (_("Add Separator"));
-                g_signal_connect (mi, "activate", G_CALLBACK (handle_add_separator), path);
-            }
+            mi = gtk_menu_item_new_with_label (type == MENU_CACHE_TYPE_SEP ? _("Remove Separator") : _("Add Separator"));
+            g_signal_connect (mi, "activate", G_CALLBACK (handle_toggle_separator), path);
             gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
 
             if (type != MENU_CACHE_TYPE_SEP && gtk_tree_path_get_depth (path) == 2)
@@ -882,6 +865,24 @@ static gboolean handle_root_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
     return TRUE;
 }
 
+static gboolean handle_sep_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    GtkTreeSelection *sel;
+    GtkTreePath *path;
+    GList *rows;
+
+    sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
+    if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
+    {
+        path = (GtkTreePath *) rows->data;
+        handle_toggle_separator (NULL, path);
+        g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
+
+        handle_selection_changed (sel, NULL);
+    }
+    return TRUE;
+}
+
 static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
 {
     GtkTreePath *path;
@@ -940,6 +941,7 @@ static void init_main_window (void)
     up_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_up");
     dn_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_down");
     root_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_root");
+    sep_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_sep");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
     scroll = (GtkWidget *) gtk_builder_get_object (builder, "scroll");
 
@@ -951,6 +953,7 @@ static void init_main_window (void)
     g_signal_connect (up_btn, "clicked", G_CALLBACK (handle_up_button), NULL);
     g_signal_connect (dn_btn, "clicked", G_CALLBACK (handle_down_button), NULL);
     g_signal_connect (root_btn, "clicked", G_CALLBACK (handle_root_button), NULL);
+    g_signal_connect (sep_btn, "clicked", G_CALLBACK (handle_sep_button), NULL);
     g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv)), "changed", G_CALLBACK (handle_selection_changed), NULL);
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
     g_signal_connect (menu_tv, "size-allocate", G_CALLBACK (set_scroll), NULL);
