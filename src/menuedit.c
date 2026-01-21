@@ -84,6 +84,7 @@ gboolean rescroll = FALSE;
 static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent);
 static gboolean can_execute (MenuCacheItem *item);
 static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+static void delete_cache (void);
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void expand_row (gpointer data, gpointer user_data);
@@ -248,6 +249,25 @@ static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data
 
     gtk_tree_model_get (model, iter, ITEM_TYPE, &type, -1);
     return type == MENU_CACHE_TYPE_DIR;
+}
+
+static void delete_cache (void)
+{
+    struct dirent *dp;
+    DIR *dfd;
+    char *cache_path, *file;
+
+    cache_path = g_build_filename (g_get_home_dir (), ".cache", "menus", NULL);
+    if ((dfd = opendir (cache_path)))
+    {
+        while ((dp = readdir (dfd)))
+        {
+            file = g_build_filename (cache_path, dp->d_name, NULL);
+            remove (file);
+            g_free (file);
+        }
+    }
+    g_free (cache_path);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -905,6 +925,9 @@ static void init_main_window (void)
 {
     GtkCellRenderer *renderer;
     GtkTreeModelFilter *cat_filter;
+
+    // delete the cache first to force it to update - it makes life so much easier...
+    delete_cache ();
 
     // read menu prefix and get system and local filenames
     sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX"));
