@@ -730,16 +730,16 @@ static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, g
             if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
                 gtk_widget_set_sensitive (mi, FALSE);
 
-            mi = gtk_menu_item_new_with_label (type == MENU_CACHE_TYPE_SEP ? _("Remove Separator") : _("Add Separator"));
-            g_signal_connect (mi, "activate", G_CALLBACK (handle_toggle_separator), path);
-            gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-
             if (type != MENU_CACHE_TYPE_SEP && gtk_tree_path_get_depth (path) == 2)
             {
                 mi = gtk_menu_item_new_with_label (_("Move to Root"));
                 g_signal_connect (mi, "activate", G_CALLBACK (handle_move_to_root), cacheitem);
                 gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
             }
+
+            mi = gtk_menu_item_new_with_label (type == MENU_CACHE_TYPE_SEP ? _("Remove Separator") : _("Add Separator"));
+            g_signal_connect (mi, "activate", G_CALLBACK (handle_toggle_separator), path);
+            gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
 
             gtk_widget_show_all (menu);
             gtk_menu_popup_at_pointer (GTK_MENU (menu), (GdkEvent *) &event);
@@ -895,6 +895,7 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
     gtk_widget_set_sensitive (up_btn, FALSE);
     gtk_widget_set_sensitive (dn_btn, FALSE);
     gtk_widget_set_sensitive (root_btn, FALSE);
+    gtk_widget_set_sensitive (sep_btn, FALSE);
 
     rows = gtk_tree_selection_get_selected_rows (sel, NULL);
     if (rows)
@@ -903,12 +904,18 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
         gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
         gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
-        if (type != MENU_CACHE_TYPE_SEP)
+        if (type == MENU_CACHE_TYPE_SEP)
+        {
+            gtk_button_set_label (GTK_BUTTON (sep_btn), _("Remove Separator"));
+        }
+        else
         {
             gtk_widget_set_sensitive (edit_btn, TRUE);
 
             if (gtk_tree_path_get_depth (path) == 2)
                 gtk_widget_set_sensitive (root_btn, TRUE);
+
+            gtk_button_set_label (GTK_BUTTON (sep_btn), _("Add Separator"));
         }
 
         if (gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
@@ -916,7 +923,10 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
 
         gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
         if (gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
+        {
             gtk_widget_set_sensitive (dn_btn, TRUE);
+            gtk_widget_set_sensitive (sep_btn, TRUE);
+        }
 
         g_list_free_full (rows, (GDestroyNotify) gtk_tree_path_free);
     }
