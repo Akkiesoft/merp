@@ -527,7 +527,7 @@ void remove_id_from_xml (const char *id)
         xmlXPathFreeObject (xpathObj);
 
         // add the MergeFile node to the top-level menu
-        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Layout']"), xpathCtx);
+        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*"), xpathCtx);
         if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr)
         {
             node = xmlNewNode (NULL, XC ("MergeFile"));
