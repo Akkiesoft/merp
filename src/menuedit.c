@@ -196,7 +196,8 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                 break;
 
             default:
-                break;
+                if (icon) g_object_unref (icon);
+                continue;
         }
 
         gtk_tree_store_append (store, &iter, parent);
@@ -206,7 +207,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         if (icon) g_object_unref (icon);
 
         /* process subentries */
-        if (menu_cache_item_get_type (item) == MENU_CACHE_TYPE_DIR)
+        if (type == MENU_CACHE_TYPE_DIR)
         {
             if (load_menu (MENU_CACHE_DIR (item), &iter))
                 gtk_tree_store_set (store, &iter, ITEM_ACTIVE, TRUE, -1);
