@@ -53,6 +53,8 @@ static GtkTreeModel *sorted;
 
 static char *icon_name;
 
+DIALOG_RELOAD_CHECK dialog_reload;
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -62,6 +64,7 @@ static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const
 static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget *widget);
 static void dialog_cancel (GtkButton *, gpointer);
+static gboolean dialog_closed (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static void show_icon_dialog (GtkButton *, gpointer category);
 static void add_icon (gpointer data, gpointer);
 static void icon_dialog_ok (GtkButton *, gpointer user_data);
@@ -157,6 +160,14 @@ static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget
 static void dialog_cancel (GtkButton *, gpointer data)
 {
     gtk_widget_destroy (GTK_WIDGET (data));
+    dialog_closed (NULL, NULL, NULL);
+}
+
+static gboolean dialog_closed (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
+{
+    if (dialog_reload == DIALOG_OPEN_RELOAD) menu_cache_reload (menu_cache);
+    dialog_reload = DIALOG_NOT_OPEN;
+    return FALSE;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -278,6 +289,8 @@ void show_properties_dialog (MenuCacheItem *item)
     MenuCacheDir *parent;
     char *path;
 
+    dialog_reload = DIALOG_OPEN;
+
     textdomain (GETTEXT_PACKAGE);
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
     dlg = (GtkWidget *) gtk_builder_get_object (builder, "wd_properties");
@@ -303,6 +316,7 @@ void show_properties_dialog (MenuCacheItem *item)
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), "Applications");
     g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), NULL);
+    g_signal_connect (dlg, "delete_event", G_CALLBACK (dialog_closed), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
     g_object_unref (builder);
@@ -442,6 +456,7 @@ finish:
     g_key_file_free (kf);
 
     gtk_widget_destroy (dlg);
+    dialog_closed (NULL, NULL, NULL);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -453,6 +468,8 @@ void show_menu_dialog (MenuCacheItem *item)
     GtkBuilder *builder;
     GtkWidget *lbl_file;
     char *path;
+
+    dialog_reload = DIALOG_OPEN;
 
     textdomain (GETTEXT_PACKAGE);
     builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
@@ -467,6 +484,7 @@ void show_menu_dialog (MenuCacheItem *item)
     g_signal_connect (gtk_builder_get_object (builder, "btn_mcancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_micons"), "clicked", G_CALLBACK (show_icon_dialog), "Categories");
     g_signal_connect (gtk_builder_get_object (builder, "btn_mok"), "clicked", G_CALLBACK (menu_dialog_ok), NULL);
+    g_signal_connect (dlg, "delete_event", G_CALLBACK (dialog_closed), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
     g_object_unref (builder);
@@ -527,6 +545,7 @@ static void menu_dialog_ok (GtkButton *, gpointer user_data)
     g_key_file_free (kf);
 
     gtk_widget_destroy (dlg);
+    dialog_closed (NULL, NULL, NULL);
 }
 
 

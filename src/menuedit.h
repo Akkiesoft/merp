@@ -34,9 +34,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITEM_ACTIVE     6
 #define ITEM_CBNAME     7
 
+typedef enum
+{
+    DIALOG_NOT_OPEN,
+    DIALOG_OPEN,
+    DIALOG_OPEN_RELOAD
+} DIALOG_RELOAD_CHECK;
+
 extern GtkWidget *main_dlg;
 extern MenuCache *menu_cache;
 extern GtkTreeModelSort *categories;
+extern DIALOG_RELOAD_CHECK dialog_reload;
 
 extern void show_properties_dialog (MenuCacheItem *item);
 extern void show_menu_dialog (MenuCacheItem *item);

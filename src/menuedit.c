@@ -279,6 +279,13 @@ static void reload_tree (MenuCache *mc, gpointer)
     GtkTreeModel *model;
     GList *expands = NULL, *selects = NULL;
 
+    // if a reload request occurs while a dialog is open, save it for later...
+    if (dialog_reload != DIALOG_NOT_OPEN)
+    {
+        dialog_reload = DIALOG_OPEN_RELOAD;
+        return;
+    }
+
     // store the current expanders
     gtk_tree_model_foreach (GTK_TREE_MODEL (store), store_expands, &expands);
 
@@ -904,7 +911,7 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
         gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
         gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
-        if (type == !MENU_CACHE_TYPE_SEP)
+        if (type != MENU_CACHE_TYPE_SEP)
         {
             gtk_widget_set_sensitive (edit_btn, TRUE);
 
@@ -933,6 +940,7 @@ static void init_main_window (void)
 
     // delete the cache first to force it to update - it makes life so much easier...
     delete_cache ();
+    dialog_reload = DIALOG_NOT_OPEN;
 
     // read menu prefix and get system and local filenames
     sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX"));
