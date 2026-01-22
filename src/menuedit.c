@@ -103,7 +103,7 @@ static void handle_item_down (GtkWidget *widget, gpointer user_data);
 static void handle_toggle_separator (GtkWidget *widget, gpointer user_data);
 static void handle_move_to_root (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
-static GtkWidget *create_popup_menu (GtkTreePath *path);
+static void create_popup_menu (gdouble x, gdouble y);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
 static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
@@ -707,69 +707,66 @@ static void handle_move_to_root (GtkWidget *widget, gpointer user_data)
 
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
 {
-    GtkWidget *menu;
-    GtkTreePath *path;
-
     if (event.type == GDK_BUTTON_PRESS && event.button == 3)
     {
-        gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (self), event.x, event.y, &path, NULL, NULL, NULL);
-        // this path leaks...
-        if (path)
-        {
-            menu = create_popup_menu (path);
-            gtk_menu_popup_at_pointer (GTK_MENU (menu), (GdkEvent *) &event);
-        }
+        create_popup_menu (event.x, event.y);
         return TRUE;
     }
 
     return FALSE;
 }
 
-static GtkWidget *create_popup_menu (GtkTreePath *path)
+static void create_popup_menu (gdouble x, gdouble y)
 {
     MenuCacheItem *cacheitem;
     MenuCacheType type;
     GtkWidget *menu, *mi;
+    GtkTreePath *path;
     GtkTreeIter iter;
 
-    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
-    gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
+    gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (menu_tv), x, y, &path, NULL, NULL, NULL);
+    // this path may leak - need to free after menu has closed
 
-    menu = gtk_menu_new ();
-
-    mi = gtk_menu_item_new_with_label (_("Edit Item..."));
-    g_signal_connect (mi, "activate", G_CALLBACK (handle_edit_item), cacheitem);
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-    gtk_widget_set_sensitive (mi, type != MENU_CACHE_TYPE_SEP);
-
-    mi = gtk_menu_item_new_with_label (_("Move Up"));
-    g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
-    if (!gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
-        gtk_widget_set_sensitive (mi, FALSE);
-
-    mi = gtk_menu_item_new_with_label (_("Move Down"));
-    g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), path);
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
-    if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
-        gtk_widget_set_sensitive (mi, FALSE);
-
-    if (type != MENU_CACHE_TYPE_SEP && gtk_tree_path_get_depth (path) == 2)
+    if (path)
     {
-        mi = gtk_menu_item_new_with_label (_("Move to Root"));
-        g_signal_connect (mi, "activate", G_CALLBACK (handle_move_to_root), cacheitem);
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+        gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
+
+        menu = gtk_menu_new ();
+
+        mi = gtk_menu_item_new_with_label (_("Edit Item..."));
+        g_signal_connect (mi, "activate", G_CALLBACK (handle_edit_item), cacheitem);
         gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+        gtk_widget_set_sensitive (mi, type != MENU_CACHE_TYPE_SEP);
+
+        mi = gtk_menu_item_new_with_label (_("Move Up"));
+        g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
+        gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+        if (!gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
+            gtk_widget_set_sensitive (mi, FALSE);
+
+        mi = gtk_menu_item_new_with_label (_("Move Down"));
+        g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), path);
+        gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+        gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+        if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
+            gtk_widget_set_sensitive (mi, FALSE);
+
+        if (type != MENU_CACHE_TYPE_SEP && gtk_tree_path_get_depth (path) == 2)
+        {
+            mi = gtk_menu_item_new_with_label (_("Move to Root"));
+            g_signal_connect (mi, "activate", G_CALLBACK (handle_move_to_root), cacheitem);
+            gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+        }
+
+        mi = gtk_menu_item_new_with_label (type == MENU_CACHE_TYPE_SEP ? _("Remove Separator") : _("Add Separator"));
+        g_signal_connect (mi, "activate", G_CALLBACK (handle_toggle_separator), path);
+        gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
+
+        gtk_widget_show_all (menu);
+        gtk_menu_popup_at_pointer (GTK_MENU (menu), NULL);
     }
-
-    mi = gtk_menu_item_new_with_label (type == MENU_CACHE_TYPE_SEP ? _("Remove Separator") : _("Add Separator"));
-    g_signal_connect (mi, "activate", G_CALLBACK (handle_toggle_separator), path);
-    gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-
-    gtk_widget_show_all (menu);
-
-    return menu;
 }
 
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *path, gpointer user_data)
@@ -1032,18 +1029,9 @@ static void gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, gpoint
 
 static void gesture_end (GtkGestureLongPress *, GdkEventSequence *, gpointer)
 {
-    GtkWidget *menu;
-    GtkTreePath *path;
-
     if (pressed)
     {
-        gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (menu_tv), press_x, press_y, &path, NULL, NULL, NULL);
-        // this path leaks...
-        if (path)
-        {
-            menu = create_popup_menu (path);
-            gtk_menu_popup_at_pointer (GTK_MENU (menu), NULL);
-        }
+        create_popup_menu (press_x, press_y);
         pressed = FALSE;
     }
 }
