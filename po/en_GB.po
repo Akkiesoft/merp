@@ -1,0 +1,149 @@
+# English translations for menu editor.
+# Copyright (C) 2026 Raspberry Pi
+# This file is distributed under the same license as the merp package.
+# Simon Long <simon@raspberrypi.com>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-01-22 11:34+0000\n"
+"PO-Revision-Date: 2026-01-22 11:39+0000\n"
+"Last-Translator: Simon Long <simon@raspberrypi.com>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: English \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../src/menuedit.c:721 ../data/merp.ui.h:3
+msgid "Edit Item..."
+msgstr ""
+
+#: ../src/menuedit.c:726 ../data/merp.ui.h:4
+msgid "Move Up"
+msgstr ""
+
+#: ../src/menuedit.c:733 ../data/merp.ui.h:5
+msgid "Move Down"
+msgstr ""
+
+#: ../src/menuedit.c:742 ../data/merp.ui.h:6
+msgid "Move to Root"
+msgstr ""
+
+#: ../src/menuedit.c:747
+msgid "Remove Separator"
+msgstr ""
+
+#: ../src/menuedit.c:747
+msgid "Add Separator"
+msgstr ""
+
+#: ../src/menuedit.c:1031
+msgctxt "tab"
+msgid "Main Menu"
+msgstr ""
+
+#: ../src/menuedit.c:1032
+msgid "No such tab"
+msgstr ""
+
+#: ../src/properties.c:264
+msgid "Select Image File"
+msgstr ""
+
+#: ../src/properties.c:265 ../data/merp.ui.h:10
+msgid "_Cancel"
+msgstr ""
+
+#: ../src/properties.c:265
+msgid "_Select"
+msgstr ""
+
+#. End of file
+#. ----------------------------------------------------------------------------
+#: ../data/merp.ui.h:1 ../data/merp.desktop.in.h:1
+msgid "Menu Editor"
+msgstr ""
+
+#: ../data/merp.ui.h:2
+msgid "New Item..."
+msgstr ""
+
+#: ../data/merp.ui.h:7
+msgid "Separator"
+msgstr ""
+
+#: ../data/merp.ui.h:8
+msgid "Close"
+msgstr ""
+
+#: ../data/merp.ui.h:9
+msgid "Select Icon"
+msgstr ""
+
+#: ../data/merp.ui.h:11
+msgid "_OK"
+msgstr ""
+
+#: ../data/merp.ui.h:12
+msgid "From _File..."
+msgstr ""
+
+#: ../data/merp.ui.h:13
+msgid "Menu Properties"
+msgstr ""
+
+#: ../data/merp.ui.h:14
+msgid "File:"
+msgstr ""
+
+#: ../data/merp.ui.h:15
+msgid "label"
+msgstr ""
+
+#: ../data/merp.ui.h:16
+msgid "ID:"
+msgstr ""
+
+#: ../data/merp.ui.h:17
+msgid "Name:"
+msgstr ""
+
+#: ../data/merp.ui.h:18
+msgid "Set _Icon..."
+msgstr ""
+
+#: ../data/merp.ui.h:19
+msgid "Desktop File Properties"
+msgstr ""
+
+#: ../data/merp.ui.h:20
+msgid "Category:"
+msgstr ""
+
+#: ../data/merp.ui.h:21
+msgid "Comment:"
+msgstr ""
+
+#: ../data/merp.ui.h:22
+msgid "Command:"
+msgstr ""
+
+#: ../data/merp.ui.h:23
+msgid "Working Directory:"
+msgstr ""
+
+#: ../data/merp.ui.h:24
+msgid "Startup Notification:"
+msgstr ""
+
+#: ../data/merp.ui.h:25
+msgid "Execute in Terminal:"
+msgstr ""
+
+#: ../data/merp.desktop.in.h:2
+msgid "Edit the main menu"
+msgstr ""

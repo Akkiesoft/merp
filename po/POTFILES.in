@@ -1,0 +1,6 @@
+[encoding: UTF-8]
+src/menuedit.c
+src/properties.c
+[type: gettext/glade] data/merp.ui
+# files added by intltool-prepare
+data/merp.desktop.in

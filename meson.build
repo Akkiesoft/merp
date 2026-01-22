@@ -15,6 +15,6 @@ i18n = import('i18n')
 
 add_project_arguments('-DPACKAGE_LOCALE_DIR="' + share_dir + '/locale"', language : 'c' )
 
-#subdir('po')
+subdir('po')
 subdir('src')
 subdir('data')
