@@ -621,9 +621,12 @@ static void handle_edit_item (GtkWidget *widget, gpointer user_data)
 
 static void handle_item_up (GtkWidget *widget, gpointer user_data)
 {
-    GtkTreePath *path = (GtkTreePath *) user_data;
+    GtkTreePath *path;
     GtkTreeIter this, dest;
     char *parent;
+
+    if (!widget) path = (GtkTreePath *) user_data;
+    else path = gtk_tree_path_new_from_string (gtk_widget_get_name (widget));
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     dest = this;
@@ -633,13 +636,17 @@ static void handle_item_up (GtkWidget *widget, gpointer user_data)
     parent = get_parent (path);
     write_menu_xml (parent);
     g_free (parent);
+    if (widget) gtk_tree_path_free (path);
 }
 
 static void handle_item_down (GtkWidget *widget, gpointer user_data)
 {
-    GtkTreePath *path = (GtkTreePath *) user_data;
+    GtkTreePath *path;
     GtkTreeIter this, dest;
     char *parent;
+
+    if (!widget) path = (GtkTreePath *) user_data;
+    else path = gtk_tree_path_new_from_string (gtk_widget_get_name (widget));
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     dest = this;
@@ -649,14 +656,18 @@ static void handle_item_down (GtkWidget *widget, gpointer user_data)
     parent = get_parent (path);
     write_menu_xml (parent);
     g_free (parent);
+    if (widget) gtk_tree_path_free (path);
 }
 
 static void handle_toggle_separator (GtkWidget *widget, gpointer user_data)
 {
-    GtkTreePath *path = (GtkTreePath *) user_data;
+    GtkTreePath *path;
     GtkTreeIter this, dest;
     MenuCacheType type;
     char *parent;
+
+    if (!widget) path = (GtkTreePath *) user_data;
+    else path = gtk_tree_path_new_from_string (gtk_widget_get_name (widget));
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     gtk_tree_model_get (GTK_TREE_MODEL (store), &this, ITEM_TYPE, &type, -1);
@@ -670,6 +681,7 @@ static void handle_toggle_separator (GtkWidget *widget, gpointer user_data)
     parent = get_parent (path);
     write_menu_xml (parent);
     g_free (parent);
+    if (widget) gtk_tree_path_free (path);
 }
 
 static void handle_move_to_root (GtkWidget *widget, gpointer user_data)
@@ -723,9 +735,10 @@ static void create_popup_menu (gdouble x, gdouble y)
     GtkWidget *menu, *mi;
     GtkTreePath *path;
     GtkTreeIter iter;
+    char *pathstr;
 
     gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (menu_tv), x, y, &path, NULL, NULL, NULL);
-    // this path may leak - need to free after menu has closed
+    pathstr = gtk_tree_path_to_string (path);
 
     if (path)
     {
@@ -740,14 +753,16 @@ static void create_popup_menu (gdouble x, gdouble y)
         gtk_widget_set_sensitive (mi, type != MENU_CACHE_TYPE_SEP);
 
         mi = gtk_menu_item_new_with_label (_("Move Up"));
-        g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), path);
+        gtk_widget_set_name (mi, pathstr);
+        g_signal_connect (mi, "activate", G_CALLBACK (handle_item_up), NULL);
         gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
         gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
         if (!gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
             gtk_widget_set_sensitive (mi, FALSE);
 
         mi = gtk_menu_item_new_with_label (_("Move Down"));
-        g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), path);
+        gtk_widget_set_name (mi, pathstr);
+        g_signal_connect (mi, "activate", G_CALLBACK (handle_item_down), NULL);
         gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
         gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
         if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
@@ -761,12 +776,16 @@ static void create_popup_menu (gdouble x, gdouble y)
         }
 
         mi = gtk_menu_item_new_with_label (type == MENU_CACHE_TYPE_SEP ? _("Remove Separator") : _("Add Separator"));
-        g_signal_connect (mi, "activate", G_CALLBACK (handle_toggle_separator), path);
+        gtk_widget_set_name (mi, pathstr);
+        g_signal_connect (mi, "activate", G_CALLBACK (handle_toggle_separator), NULL);
         gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
 
         gtk_widget_show_all (menu);
         gtk_menu_popup_at_pointer (GTK_MENU (menu), NULL);
     }
+
+    g_free (pathstr);
+    gtk_tree_path_free (path);
 }
 
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *path, gpointer user_data)
