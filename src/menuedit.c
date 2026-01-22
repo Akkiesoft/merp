@@ -904,18 +904,12 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
         gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
         gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
-        if (type == MENU_CACHE_TYPE_SEP)
-        {
-            gtk_button_set_label (GTK_BUTTON (sep_btn), _("Remove Separator"));
-        }
-        else
+        if (type == !MENU_CACHE_TYPE_SEP)
         {
             gtk_widget_set_sensitive (edit_btn, TRUE);
 
             if (gtk_tree_path_get_depth (path) == 2)
                 gtk_widget_set_sensitive (root_btn, TRUE);
-
-            gtk_button_set_label (GTK_BUTTON (sep_btn), _("Add Separator"));
         }
 
         if (gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
