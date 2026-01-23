@@ -53,6 +53,8 @@ static GtkTreeModel *sorted;
 
 static char *icon_name;
 
+static gboolean cat_changed;
+
 DIALOG_RELOAD_CHECK dialog_reload;
 
 /*----------------------------------------------------------------------------*/
@@ -60,7 +62,7 @@ DIALOG_RELOAD_CHECK dialog_reload;
 /*----------------------------------------------------------------------------*/
 
 static void show_icon (const char *name, GtkWidget *img);
-static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value, gboolean contains);
+static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value);
 static gboolean update_bool_if_changed (GKeyFile *kf, const char *param, GtkWidget *widget);
 static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget *widget);
 static void dialog_cancel (GtkButton *, gpointer);
@@ -71,6 +73,7 @@ static void icon_dialog_ok (GtkButton *, gpointer user_data);
 static void load_from_file (GtkButton *, gpointer);
 static gboolean set_active_cat (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void text_changed (GtkEditable* self, gpointer user_data);
+static void catcb_changed (GtkComboBox *self, gpointer user_data);
 static void prop_dialog_ok (GtkButton *, gpointer user_data);
 static void menu_dialog_ok (GtkButton *, gpointer user_data);
 
@@ -102,14 +105,14 @@ static void show_icon (const char *name, GtkWidget *img)
     g_object_unref (pixbuf);
 }
 
-static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value, gboolean contains)
+static gboolean update_string_if_changed (GKeyFile *kf, const char *param, const char *value)
 {
     char *str;
     gboolean update = FALSE;
 
     str = g_key_file_get_string (kf, "Desktop Entry", param, NULL);
     if (!str && (!value || value[0] == 0)) return FALSE;
-    if ((contains == FALSE && g_strcmp0 (value, str)) || !strstr (str, value))
+    if (g_strcmp0 (value, str))
     {
         g_key_file_set_string (kf, "Desktop Entry", param, value);
         update = TRUE;
@@ -152,7 +155,7 @@ static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget
     g_free (str);
 
     ent = gtk_entry_get_text (GTK_ENTRY (widget));
-    update = update_string_if_changed (kf, lcparam, ent, FALSE);
+    update = update_string_if_changed (kf, lcparam, ent);
 
     g_free (lcparam);
     return update;
@@ -322,6 +325,7 @@ void show_properties_dialog (MenuCacheItem *item)
     g_signal_connect (entry_name, "changed", G_CALLBACK (text_changed), NULL);
     g_signal_connect (entry_id, "changed", G_CALLBACK (text_changed), NULL);
     g_signal_connect (entry_cmd, "changed", G_CALLBACK (text_changed), NULL);
+    g_signal_connect (cb_category, "changed", G_CALLBACK (catcb_changed), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
     g_object_unref (builder);
@@ -364,6 +368,7 @@ void show_properties_dialog (MenuCacheItem *item)
     }
 
     text_changed (NULL, NULL);
+    cat_changed = FALSE;
     gtk_widget_show (dlg);
 }
 
@@ -390,6 +395,11 @@ static void text_changed (GtkEditable* self, gpointer user_data)
             gtk_widget_set_sensitive (btn_ok, TRUE);
     else
             gtk_widget_set_sensitive (btn_ok, FALSE);
+}
+
+static void catcb_changed (GtkComboBox *self, gpointer user_data)
+{
+    cat_changed = TRUE;
 }
 
 static void prop_dialog_ok (GtkButton *, gpointer user_data)
@@ -432,12 +442,12 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
     update |= update_changed_entry (kf, "Path", entry_dir);
     update |= update_bool_if_changed (kf, "StartupNotify", sw_notif);
     update |= update_bool_if_changed (kf, "Terminal", sw_terminal);
-    update |= update_string_if_changed (kf, "Icon", icon_name, FALSE);
+    update |= update_string_if_changed (kf, "Icon", icon_name);
 
     if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
     {
         gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, CAT_ID, &cat, -1);
-        if (update_string_if_changed (kf, "Categories", cat, TRUE))
+        if (cat_changed && update_string_if_changed (kf, "Categories", cat))
         {
             // remove any reference to this id from the menu XML file, or it will be duplicated
             remove_id_from_xml (str);
@@ -533,7 +543,7 @@ static void menu_dialog_ok (GtkButton *, gpointer user_data)
 
     update = FALSE;
     update |= update_changed_entry (kf, "Name", entry_name);
-    update |= update_string_if_changed (kf, "Icon", icon_name, FALSE);
+    update |= update_string_if_changed (kf, "Icon", icon_name);
 
     // write to the override in local
     if (update)
