@@ -17,48 +17,48 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../src/menuedit.c:721 ../data/merp.ui.h:3
+#: ../src/menuedit.c:229
+msgid "<Top Level>"
+msgstr ""
+
+#: ../src/menuedit.c:718
 msgid "Edit Item..."
 msgstr ""
 
-#: ../src/menuedit.c:726 ../data/merp.ui.h:4
+#: ../src/menuedit.c:723
 msgid "Move Up"
 msgstr ""
 
-#: ../src/menuedit.c:733 ../data/merp.ui.h:5
+#: ../src/menuedit.c:731
 msgid "Move Down"
 msgstr ""
 
-#: ../src/menuedit.c:742 ../data/merp.ui.h:6
-msgid "Move to Root"
-msgstr ""
-
-#: ../src/menuedit.c:747
+#: ../src/menuedit.c:739
 msgid "Remove Separator"
 msgstr ""
 
-#: ../src/menuedit.c:747
+#: ../src/menuedit.c:739
 msgid "Add Separator"
 msgstr ""
 
-#: ../src/menuedit.c:1031
+#: ../src/menuedit.c:1022
 msgctxt "tab"
 msgid "Main Menu"
 msgstr ""
 
-#: ../src/menuedit.c:1032
+#: ../src/menuedit.c:1023
 msgid "No such tab"
 msgstr ""
 
-#: ../src/properties.c:264
+#: ../src/properties.c:265
 msgid "Select Image File"
 msgstr ""
 
-#: ../src/properties.c:265 ../data/merp.ui.h:10
+#: ../src/properties.c:266 ../data/merp.ui.h:9
 msgid "_Cancel"
 msgstr ""
 
-#: ../src/properties.c:265
+#: ../src/properties.c:266
 msgid "_Select"
 msgstr ""
 
@@ -69,78 +69,90 @@ msgid "Menu Editor"
 msgstr ""
 
 #: ../data/merp.ui.h:2
-msgid "New Item..."
+msgid "_New Item..."
+msgstr ""
+
+#: ../data/merp.ui.h:3
+msgid "_Edit Item..."
+msgstr ""
+
+#: ../data/merp.ui.h:4
+msgid "Move _Up"
+msgstr ""
+
+#: ../data/merp.ui.h:5
+msgid "Move _Down"
+msgstr ""
+
+#: ../data/merp.ui.h:6
+msgid "_Separator"
 msgstr ""
 
 #: ../data/merp.ui.h:7
-msgid "Separator"
-msgstr ""
-
-#: ../data/merp.ui.h:8
 msgid "Close"
 msgstr ""
 
-#: ../data/merp.ui.h:9
+#: ../data/merp.ui.h:8
 msgid "Select Icon"
 msgstr ""
 
-#: ../data/merp.ui.h:11
+#: ../data/merp.ui.h:10
 msgid "_OK"
 msgstr ""
 
-#: ../data/merp.ui.h:12
+#: ../data/merp.ui.h:11
 msgid "From _File..."
 msgstr ""
 
-#: ../data/merp.ui.h:13
+#: ../data/merp.ui.h:12
 msgid "Menu Properties"
 msgstr ""
 
-#: ../data/merp.ui.h:14
+#: ../data/merp.ui.h:13
 msgid "File:"
 msgstr ""
 
-#: ../data/merp.ui.h:15
+#: ../data/merp.ui.h:14
 msgid "label"
 msgstr ""
 
-#: ../data/merp.ui.h:16
+#: ../data/merp.ui.h:15
 msgid "ID:"
 msgstr ""
 
-#: ../data/merp.ui.h:17
+#: ../data/merp.ui.h:16
 msgid "Name:"
 msgstr ""
 
-#: ../data/merp.ui.h:18
+#: ../data/merp.ui.h:17
 msgid "Set _Icon..."
 msgstr ""
 
-#: ../data/merp.ui.h:19
+#: ../data/merp.ui.h:18
 msgid "Desktop File Properties"
 msgstr ""
 
-#: ../data/merp.ui.h:20
+#: ../data/merp.ui.h:19
 msgid "Category:"
 msgstr ""
 
-#: ../data/merp.ui.h:21
+#: ../data/merp.ui.h:20
 msgid "Comment:"
 msgstr ""
 
-#: ../data/merp.ui.h:22
+#: ../data/merp.ui.h:21
 msgid "Command:"
 msgstr ""
 
-#: ../data/merp.ui.h:23
+#: ../data/merp.ui.h:22
 msgid "Working Directory:"
 msgstr ""
 
-#: ../data/merp.ui.h:24
+#: ../data/merp.ui.h:23
 msgid "Startup Notification:"
 msgstr ""
 
-#: ../data/merp.ui.h:25
+#: ../data/merp.ui.h:24
 msgid "Execute in Terminal:"
 msgstr ""
 
