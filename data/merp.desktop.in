@@ -2,7 +2,7 @@
 Type=Application
 Name=Menu Editor
 Comment=Edit the main menu
-Icon=alacarte
+Icon=menu-edit
 Exec=merp
 StartupNotify=true
 Categories=Settings;

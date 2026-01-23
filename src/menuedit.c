@@ -1028,7 +1028,7 @@ const char *icon_name (int tab)
 {
     switch (tab)
     {
-        case 0 : return "alacarte";
+        case 0 : return "menu-edit";
         default : return NULL;
     }
 }
