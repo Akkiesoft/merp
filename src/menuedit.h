@@ -34,6 +34,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITEM_ACTIVE     6
 #define ITEM_CBNAME     7
 
+#define CAT_NAME        0
+#define CAT_ID          1
+
 typedef enum
 {
     DIALOG_NOT_OPEN,

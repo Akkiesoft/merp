@@ -51,8 +51,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static GtkBuilder *builder;
 GtkWidget *main_dlg;
-static GtkWidget *menu_tv, *new_btn, *scroll, *edit_btn, *up_btn, *dn_btn, *root_btn, *sep_btn;
-static GtkTreeStore *store;
+static GtkWidget *menu_tv, *new_btn, *scroll, *edit_btn, *up_btn, *dn_btn, *sep_btn;
+static GtkTreeStore *store, *cats;
 static gboolean pressed;
 static double press_x, press_y;
 
@@ -85,7 +85,6 @@ gboolean rescroll = FALSE;
 
 static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent);
 static gboolean can_execute (MenuCacheItem *item);
-static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
 static void delete_cache (void);
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
@@ -101,7 +100,6 @@ static void handle_edit_item (GtkWidget *widget, gpointer user_data);
 static void handle_item_up (GtkWidget *widget, gpointer user_data);
 static void handle_item_down (GtkWidget *widget, gpointer user_data);
 static void handle_toggle_separator (GtkWidget *widget, gpointer user_data);
-static void handle_move_to_root (GtkWidget *widget, gpointer user_data);
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data);
 static void create_popup_menu (gdouble x, gdouble y);
 static void handle_visible_toggled (GtkCellRendererToggle *cell, gchar *pat, gpointer user_data);
@@ -109,7 +107,6 @@ static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_d
 static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
-static gboolean handle_root_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data);
 static void init_main_window (void);
 static void gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, gpointer);
@@ -125,7 +122,7 @@ static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
 {
     GSList *l, *children;
-    GtkTreeIter iter;
+    GtkTreeIter iter, citer;
     GdkPixbuf *icon;
     MenuCacheItem* item;
     MenuCacheType type;
@@ -214,12 +211,21 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         /* process subentries */
         if (type == MENU_CACHE_TYPE_DIR)
         {
+            gtk_tree_store_append (cats, &citer, NULL);
+            gtk_tree_store_set (cats, &citer, CAT_NAME, name, CAT_ID, id, -1);
+
             if (load_menu (MENU_CACHE_DIR (item), &iter))
                 gtk_tree_store_set (store, &iter, ITEM_ACTIVE, TRUE, -1);
         }
     }
 
     g_slist_free (children);
+
+    if (!parent)
+    {
+        gtk_tree_store_append (cats, &citer, NULL);
+        gtk_tree_store_set (cats, &citer, CAT_NAME, "<Top Level>", CAT_ID, "Applications", -1);
+    }
 
     return TRUE;
 }
@@ -246,14 +252,6 @@ static gboolean can_execute (MenuCacheItem *item)
 
     g_key_file_free (kf);
     return result;
-}
-
-static gboolean only_dirs (GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
-{
-    MenuCacheType type;
-
-    gtk_tree_model_get (model, iter, ITEM_TYPE, &type, -1);
-    return type == MENU_CACHE_TYPE_DIR;
 }
 
 static void delete_cache (void)
@@ -304,6 +302,7 @@ static void reload_tree (MenuCache *mc, gpointer)
 
     // reload cache and tree view
     gtk_tree_store_clear (store);
+    gtk_tree_store_clear (cats);
     load_menu (NULL, NULL);
 
     // restore the expanders
@@ -684,39 +683,6 @@ static void handle_toggle_separator (GtkWidget *widget, gpointer user_data)
     if (widget) gtk_tree_path_free (path);
 }
 
-static void handle_move_to_root (GtkWidget *widget, gpointer user_data)
-{
-    MenuCacheItem *item = (MenuCacheItem *) user_data;
-    GKeyFile *kf;
-    char *path, *str;
-    gsize len;
-
-    kf = g_key_file_new ();
-
-    path = menu_cache_item_get_file_path (item);
-    g_key_file_load_from_file (kf, path, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
-    g_free (path);
-
-    g_key_file_set_string (kf, "Desktop Entry", "Categories", "Applications");
-
-    path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", menu_cache_item_get_file_basename (item), NULL);
-
-    str = g_path_get_dirname (path);
-    g_mkdir_with_parents (str, S_IRUSR | S_IWUSR | S_IXUSR);
-    g_free (str);
-
-    str = g_key_file_to_data (kf, &len, NULL);
-    g_file_set_contents (path, str, len, NULL);
-    g_free (str);
-
-    g_free (path);
-
-    // remove any reference to this id from the menu XML file, or it will be duplicated
-    remove_id_from_xml (menu_cache_item_get_file_basename (item));
-
-    menu_cache_reload (menu_cache);
-}
-
 static gboolean handle_tv_button_press (GtkWidget *self, GdkEventButton event, gpointer user_data)
 {
     if (event.type == GDK_BUTTON_PRESS && event.button == 3)
@@ -767,13 +733,6 @@ static void create_popup_menu (gdouble x, gdouble y)
         gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
         if (!gtk_tree_model_iter_next (GTK_TREE_MODEL (store), &iter))
             gtk_widget_set_sensitive (mi, FALSE);
-
-        if (type != MENU_CACHE_TYPE_SEP && gtk_tree_path_get_depth (path) == 2)
-        {
-            mi = gtk_menu_item_new_with_label (_("Move to Root"));
-            g_signal_connect (mi, "activate", G_CALLBACK (handle_move_to_root), cacheitem);
-            gtk_menu_shell_append (GTK_MENU_SHELL (menu), mi);
-        }
 
         mi = gtk_menu_item_new_with_label (type == MENU_CACHE_TYPE_SEP ? _("Remove Separator") : _("Add Separator"));
         gtk_widget_set_name (mi, pathstr);
@@ -888,21 +847,6 @@ static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
     return TRUE;
 }
 
-static gboolean handle_root_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
-{
-    GtkTreeSelection *sel;
-    GtkTreeIter iter;
-    MenuCacheItem *cacheitem;
-
-    sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
-    if (sel && gtk_tree_selection_get_selected (sel, NULL, &iter))
-    {
-        gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, -1);
-        handle_move_to_root (NULL, cacheitem);
-    }
-    return TRUE;
-}
-
 static gboolean handle_sep_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
 {
     GtkTreeSelection *sel;
@@ -932,7 +876,6 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
     gtk_widget_set_sensitive (edit_btn, FALSE);
     gtk_widget_set_sensitive (up_btn, FALSE);
     gtk_widget_set_sensitive (dn_btn, FALSE);
-    gtk_widget_set_sensitive (root_btn, FALSE);
     gtk_widget_set_sensitive (sep_btn, FALSE);
 
     rows = gtk_tree_selection_get_selected_rows (sel, NULL);
@@ -943,12 +886,7 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
         gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, ITEM_TYPE, &type, -1);
 
         if (type != MENU_CACHE_TYPE_SEP)
-        {
             gtk_widget_set_sensitive (edit_btn, TRUE);
-
-            if (gtk_tree_path_get_depth (path) == 2)
-                gtk_widget_set_sensitive (root_btn, TRUE);
-        }
 
         if (gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &iter))
             gtk_widget_set_sensitive (up_btn, TRUE);
@@ -967,7 +905,6 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
 static void init_main_window (void)
 {
     GtkCellRenderer *renderer;
-    GtkTreeModelFilter *cat_filter;
 
     // delete the cache first to force it to update - it makes life so much easier...
     delete_cache ();
@@ -978,12 +915,12 @@ static void init_main_window (void)
     usermenufile = g_strdup_printf ("%s/menus/%sapplications.menu", g_get_user_config_dir (), getenv ("XDG_MENU_PREFIX"));
 
     store = gtk_tree_store_new (8, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN, G_TYPE_STRING);
+    cats = gtk_tree_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
 
     new_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_new");
     edit_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_edit");
     up_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_up");
     dn_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_down");
-    root_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_root");
     sep_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_sep");
     menu_tv = (GtkWidget *) gtk_builder_get_object (builder, "tv_menu");
     scroll = (GtkWidget *) gtk_builder_get_object (builder, "scroll");
@@ -995,7 +932,6 @@ static void init_main_window (void)
     g_signal_connect (edit_btn, "clicked", G_CALLBACK (handle_edit_button), NULL);
     g_signal_connect (up_btn, "clicked", G_CALLBACK (handle_up_button), NULL);
     g_signal_connect (dn_btn, "clicked", G_CALLBACK (handle_down_button), NULL);
-    g_signal_connect (root_btn, "clicked", G_CALLBACK (handle_root_button), NULL);
     g_signal_connect (sep_btn, "clicked", G_CALLBACK (handle_sep_button), NULL);
     g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv)), "changed", G_CALLBACK (handle_selection_changed), NULL);
     g_signal_connect (menu_tv, "button-press-event", G_CALLBACK (handle_tv_button_press), NULL);
@@ -1018,17 +954,14 @@ static void init_main_window (void)
 
     gtk_tree_view_set_model (GTK_TREE_VIEW (menu_tv), GTK_TREE_MODEL (store));
 
+    categories = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (cats)));
+    gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), CAT_NAME, GTK_SORT_ASCENDING);
+
     // read menu cache and load into tree store
     menu_cache = menu_cache_lookup ("applications.menu+hidden");
     id = menu_cache_add_reload_notify (menu_cache, reload_tree, NULL);
 
     load_menu (NULL, NULL);
-
-    cat_filter = GTK_TREE_MODEL_FILTER (gtk_tree_model_filter_new (GTK_TREE_MODEL (store), NULL));
-    gtk_tree_model_filter_set_visible_func (cat_filter, (GtkTreeModelFilterVisibleFunc) only_dirs, NULL, NULL);
-
-    categories = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (cat_filter)));
-    gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), ITEM_NAME, GTK_SORT_ASCENDING);
 
     // set up long press
     GtkGesture *gesture = gtk_gesture_long_press_new (menu_tv);

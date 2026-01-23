@@ -311,7 +311,7 @@ void show_properties_dialog (MenuCacheItem *item)
     gtk_combo_box_set_model (GTK_COMBO_BOX (cb_category), GTK_TREE_MODEL (categories));
     rend = gtk_cell_renderer_text_new ();
     gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (cb_category), rend, FALSE);
-    gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", ITEM_CBNAME);
+    gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (cb_category), rend, "text", CAT_NAME);
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), "Applications");
@@ -342,13 +342,8 @@ void show_properties_dialog (MenuCacheItem *item)
         gtk_switch_set_active (GTK_SWITCH (sw_terminal), menu_cache_app_get_use_terminal (MENU_CACHE_APP (item)));
 
         parent = menu_cache_item_dup_parent (item);
-        path = menu_cache_dir_make_path (parent);
+        gtk_tree_model_foreach (GTK_TREE_MODEL (categories), set_active_cat, (gpointer) menu_cache_item_get_id (MENU_CACHE_ITEM (parent)));
         menu_cache_item_unref (MENU_CACHE_ITEM (parent));
-        if (path)
-        {
-            gtk_tree_model_foreach (GTK_TREE_MODEL (categories), set_active_cat, path);
-            g_free (path);
-        }
 
         gtk_widget_hide (entry_id);
     }
@@ -370,7 +365,7 @@ static gboolean set_active_cat (GtkTreeModel *model, GtkTreePath *path, GtkTreeI
     char *str;
     gboolean end = FALSE;
 
-    gtk_tree_model_get (model, iter, ITEM_ID, &str, -1);
+    gtk_tree_model_get (model, iter, CAT_ID, &str, -1);
     if (strstr ((const char *) data, str))
     {
         gtk_combo_box_set_active_iter (GTK_COMBO_BOX (cb_category), iter);
@@ -424,7 +419,7 @@ static void prop_dialog_ok (GtkButton *, gpointer user_data)
 
     if (gtk_combo_box_get_active_iter (GTK_COMBO_BOX (cb_category), &iter))
     {
-        gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, ITEM_ID, &cat, -1);
+        gtk_tree_model_get (GTK_TREE_MODEL (categories), &iter, CAT_ID, &cat, -1);
         if (update_string_if_changed (kf, "Categories", cat, TRUE))
         {
             // remove any reference to this id from the menu XML file, or it will be duplicated
