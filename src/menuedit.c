@@ -107,6 +107,7 @@ static gboolean handle_new_button (GtkWidget *wid, GdkEvent *ev, gpointer user_d
 static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
+static gboolean handle_sep_button (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
 static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data);
 static void init_main_window (void);
 static void gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, gpointer);
@@ -208,7 +209,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         g_free (markup);
         if (icon) g_object_unref (icon);
 
-        /* process subentries */
+        // recurse into directories
         if (type == MENU_CACHE_TYPE_DIR)
         {
             gtk_tree_store_append (cats, &citer, NULL);
@@ -221,10 +222,11 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
 
     g_slist_free (children);
 
+    // add the root category
     if (!parent)
     {
         gtk_tree_store_append (cats, &citer, NULL);
-        gtk_tree_store_set (cats, &citer, CAT_NAME, "<Top Level>", CAT_ID, "Applications", -1);
+        gtk_tree_store_set (cats, &citer, CAT_NAME, _("<Top Level>"), CAT_ID, "Applications", -1);
     }
 
     return TRUE;
@@ -905,6 +907,7 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
 static void init_main_window (void)
 {
     GtkCellRenderer *renderer;
+    GtkGesture *gesture;
 
     // delete the cache first to force it to update - it makes life so much easier...
     delete_cache ();
@@ -964,7 +967,7 @@ static void init_main_window (void)
     load_menu (NULL, NULL);
 
     // set up long press
-    GtkGesture *gesture = gtk_gesture_long_press_new (menu_tv);
+    gesture = gtk_gesture_long_press_new (menu_tv);
     gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), FALSE);
     g_signal_connect (gesture, "pressed", G_CALLBACK (gesture_pressed), NULL);
     g_signal_connect (gesture, "end", G_CALLBACK (gesture_end), NULL);

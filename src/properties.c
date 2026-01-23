@@ -46,7 +46,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Global data                                                                */
 /*----------------------------------------------------------------------------*/
 
-static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal, *cb_category, *entry_id, *lbl_target;
+static GtkWidget *dlg, *idlg, *entry_name, *entry_cmd, *entry_dir, *entry_desc, *img_icon, *sw_notif, *sw_terminal, *cb_category, *entry_id, *lbl_target, *btn_ok;
 
 static GtkListStore *items;
 static GtkTreeModel *sorted;
@@ -70,6 +70,7 @@ static void add_icon (gpointer data, gpointer);
 static void icon_dialog_ok (GtkButton *, gpointer user_data);
 static void load_from_file (GtkButton *, gpointer);
 static gboolean set_active_cat (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
+static void text_changed (GtkEditable* self, gpointer user_data);
 static void prop_dialog_ok (GtkButton *, gpointer user_data);
 static void menu_dialog_ok (GtkButton *, gpointer user_data);
 
@@ -307,6 +308,7 @@ void show_properties_dialog (MenuCacheItem *item)
     sw_terminal = (GtkWidget *) gtk_builder_get_object (builder, "sw_terminal");
     cb_category = (GtkWidget *) gtk_builder_get_object (builder, "cb_category");
     box_path = (GtkWidget *) gtk_builder_get_object (builder, "item_box_file");
+    btn_ok = (GtkWidget *) gtk_builder_get_object (builder, "btn_ok");
 
     gtk_combo_box_set_model (GTK_COMBO_BOX (cb_category), GTK_TREE_MODEL (categories));
     rend = gtk_cell_renderer_text_new ();
@@ -315,8 +317,11 @@ void show_properties_dialog (MenuCacheItem *item)
 
     g_signal_connect (gtk_builder_get_object (builder, "btn_cancel"), "clicked", G_CALLBACK (dialog_cancel), dlg);
     g_signal_connect (gtk_builder_get_object (builder, "btn_icons"), "clicked", G_CALLBACK (show_icon_dialog), "Applications");
-    g_signal_connect (gtk_builder_get_object (builder, "btn_ok"), "clicked", G_CALLBACK (prop_dialog_ok), NULL);
+    g_signal_connect (btn_ok, "clicked", G_CALLBACK (prop_dialog_ok), NULL);
     g_signal_connect (dlg, "delete_event", G_CALLBACK (dialog_closed), NULL);
+    g_signal_connect (entry_name, "changed", G_CALLBACK (text_changed), NULL);
+    g_signal_connect (entry_id, "changed", G_CALLBACK (text_changed), NULL);
+    g_signal_connect (entry_cmd, "changed", G_CALLBACK (text_changed), NULL);
 
     gtk_window_set_default_size (GTK_WINDOW (dlg), 500, -1);
     g_object_unref (builder);
@@ -331,6 +336,7 @@ void show_properties_dialog (MenuCacheItem *item)
         g_free (path);
 
         gtk_label_set_text (GTK_LABEL (lbl_file), menu_cache_item_get_file_basename (item));
+        gtk_entry_set_text (GTK_ENTRY (entry_id), menu_cache_item_get_id (item));
         gtk_entry_set_text (GTK_ENTRY (entry_name), menu_cache_item_get_name (item));
         gtk_entry_set_text (GTK_ENTRY (entry_cmd), menu_cache_app_get_exec (MENU_CACHE_APP (item)));
         if (menu_cache_item_get_comment (item))
@@ -357,6 +363,7 @@ void show_properties_dialog (MenuCacheItem *item)
         gtk_widget_hide (box_path);
     }
 
+    text_changed (NULL, NULL);
     gtk_widget_show (dlg);
 }
 
@@ -373,6 +380,16 @@ static gboolean set_active_cat (GtkTreeModel *model, GtkTreePath *path, GtkTreeI
     }
     g_free (str);
     return end;
+}
+
+static void text_changed (GtkEditable* self, gpointer user_data)
+{
+    if (strlen (gtk_entry_get_text (GTK_ENTRY (entry_id)))
+        && strlen (gtk_entry_get_text (GTK_ENTRY (entry_name)))
+        && strlen (gtk_entry_get_text (GTK_ENTRY (entry_cmd))))
+            gtk_widget_set_sensitive (btn_ok, TRUE);
+    else
+            gtk_widget_set_sensitive (btn_ok, FALSE);
 }
 
 static void prop_dialog_ok (GtkButton *, gpointer user_data)
