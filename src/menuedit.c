@@ -204,7 +204,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
         }
 
         gtk_tree_store_append (store, &iter, parent);
-        gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, type, ITEM_ACTIVE, type == MENU_CACHE_TYPE_APP, ITEM_CBNAME, name, -1);
+        gtk_tree_store_set (store, &iter, ITEM_NAME, markup, ITEM_ICON, icon, ITEM_ID, id, ITEM_VISIBLE, vis, ITEM_POINTER, item, ITEM_TYPE, type, ITEM_ACTIVE, type == MENU_CACHE_TYPE_APP, ITEM_CBNAME, name, ITEM_TOGGLE, type != MENU_CACHE_TYPE_SEP, -1);
 
         g_free (markup);
         if (icon) g_object_unref (icon);
@@ -917,7 +917,7 @@ static void init_main_window (void)
     sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX"));
     usermenufile = g_strdup_printf ("%s/menus/%sapplications.menu", g_get_user_config_dir (), getenv ("XDG_MENU_PREFIX"));
 
-    store = gtk_tree_store_new (8, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN, G_TYPE_STRING);
+    store = gtk_tree_store_new (9, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN, G_TYPE_STRING, G_TYPE_BOOLEAN);
     cats = gtk_tree_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
 
     new_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_new");
@@ -942,7 +942,7 @@ static void init_main_window (void)
     
     // setup tree view
     renderer = gtk_cell_renderer_toggle_new ();
-    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 0, "Visible", renderer, "active", ITEM_VISIBLE, "activatable", ITEM_ACTIVE, NULL);
+    gtk_tree_view_insert_column_with_attributes (GTK_TREE_VIEW (menu_tv), 0, "Visible", renderer, "active", ITEM_VISIBLE, "activatable", ITEM_ACTIVE, "visible", ITEM_TOGGLE, NULL);
     g_signal_connect (renderer, "toggled", G_CALLBACK (handle_visible_toggled), NULL);
 
     renderer = gtk_cell_renderer_pixbuf_new ();

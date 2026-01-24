@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ITEM_TYPE       5
 #define ITEM_ACTIVE     6
 #define ITEM_CBNAME     7
+#define ITEM_TOGGLE     8
 
 #define CAT_NAME        0
 #define CAT_ID          1
