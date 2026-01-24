@@ -79,6 +79,8 @@ xmlNode *root_node, *cur_node;
 gdouble tv_scroll;
 gboolean rescroll = FALSE;
 
+int init_dirs;
+
 /*----------------------------------------------------------------------------*/
 /* Prototypes                                                                 */
 /*----------------------------------------------------------------------------*/
@@ -86,6 +88,7 @@ gboolean rescroll = FALSE;
 static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent);
 static gboolean can_execute (MenuCacheItem *item);
 static void delete_cache (void);
+static int check_dirs (void);
 static void reload_tree (MenuCache *mc, gpointer);
 static gboolean store_expands (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data);
 static void expand_row (gpointer data, gpointer user_data);
@@ -273,6 +276,25 @@ static void delete_cache (void)
         }
     }
     g_free (cache_path);
+}
+
+static int check_dirs (void)
+{
+    char *path;
+    int dirs = 0;
+
+    // check the XML file and the two directories under .local
+    if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR)) dirs |= 1;
+
+    path = g_build_filename (g_get_home_dir (), ".local", "share", "applications", NULL);
+    if (g_file_test (path, G_FILE_TEST_IS_DIR)) dirs |= 2;
+    g_free (path);
+
+    path = g_build_filename (g_get_home_dir (), ".local", "share", "desktop-directories", NULL);
+    if (g_file_test (path, G_FILE_TEST_IS_DIR)) dirs |= 4;
+    g_free (path);
+
+    return dirs;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -917,6 +939,8 @@ static void init_main_window (void)
     sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX"));
     usermenufile = g_strdup_printf ("%s/menus/%sapplications.menu", g_get_user_config_dir (), getenv ("XDG_MENU_PREFIX"));
 
+    init_dirs = check_dirs ();
+
     store = gtk_tree_store_new (9, G_TYPE_STRING, GDK_TYPE_PIXBUF, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_POINTER, G_TYPE_INT, G_TYPE_BOOLEAN, G_TYPE_STRING, G_TYPE_BOOLEAN);
     cats = gtk_tree_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
 
@@ -1063,6 +1087,7 @@ GtkWidget *get_tab (int tab)
 
 gboolean reboot_needed (void)
 {
+    if (check_dirs () != init_dirs) return TRUE;
     return FALSE;
 }
 
