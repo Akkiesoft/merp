@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-22 11:34+0000\n"
+"POT-Creation-Date: 2026-01-25 09:33+0000\n"
 "PO-Revision-Date: 2026-01-22 11:39+0000\n"
 "Last-Translator: Simon Long <simon@raspberrypi.com>\n"
 "Language-Team: English (British)\n"
@@ -17,48 +17,48 @@ msgstr ""
 "Content-Type: text/plain; charset=ASCII\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../src/menuedit.c:229
+#: ../src/menuedit.c:232
 msgid "<Top Level>"
 msgstr ""
 
-#: ../src/menuedit.c:718
+#: ../src/menuedit.c:740
 msgid "Edit Item..."
 msgstr ""
 
-#: ../src/menuedit.c:723
+#: ../src/menuedit.c:745
 msgid "Move Up"
 msgstr ""
 
-#: ../src/menuedit.c:731
+#: ../src/menuedit.c:753
 msgid "Move Down"
 msgstr ""
 
-#: ../src/menuedit.c:739
+#: ../src/menuedit.c:761
 msgid "Remove Separator"
 msgstr ""
 
-#: ../src/menuedit.c:739
+#: ../src/menuedit.c:761
 msgid "Add Separator"
 msgstr ""
 
-#: ../src/menuedit.c:1022
+#: ../src/menuedit.c:1046
 msgctxt "tab"
 msgid "Main Menu"
 msgstr ""
 
-#: ../src/menuedit.c:1023
+#: ../src/menuedit.c:1047
 msgid "No such tab"
 msgstr ""
 
-#: ../src/properties.c:265
+#: ../src/properties.c:268
 msgid "Select Image File"
 msgstr ""
 
-#: ../src/properties.c:266 ../data/merp.ui.h:9
+#: ../src/properties.c:269 ../data/merp.ui.h:14
 msgid "_Cancel"
 msgstr ""
 
-#: ../src/properties.c:266
+#: ../src/properties.c:269
 msgid "_Select"
 msgstr ""
 
@@ -73,86 +73,106 @@ msgid "_New Item..."
 msgstr ""
 
 #: ../data/merp.ui.h:3
-msgid "_Edit Item..."
+msgid "Create new menu item"
 msgstr ""
 
 #: ../data/merp.ui.h:4
-msgid "Move _Up"
+msgid "_Edit Item..."
 msgstr ""
 
 #: ../data/merp.ui.h:5
-msgid "Move _Down"
+msgid "Edit menu item or directory"
 msgstr ""
 
 #: ../data/merp.ui.h:6
-msgid "_Separator"
+msgid "Move _Up"
 msgstr ""
 
 #: ../data/merp.ui.h:7
-msgid "Close"
+msgid "Move menu item or directory upwards"
 msgstr ""
 
 #: ../data/merp.ui.h:8
-msgid "Select Icon"
+msgid "Move _Down"
+msgstr ""
+
+#: ../data/merp.ui.h:9
+msgid "Move menu item or directory downwards"
 msgstr ""
 
 #: ../data/merp.ui.h:10
-msgid "_OK"
+msgid "_Separator"
 msgstr ""
 
 #: ../data/merp.ui.h:11
-msgid "From _File..."
+msgid "Add or remove separator"
 msgstr ""
 
 #: ../data/merp.ui.h:12
-msgid "Menu Properties"
+msgid "Close"
 msgstr ""
 
 #: ../data/merp.ui.h:13
-msgid "File:"
-msgstr ""
-
-#: ../data/merp.ui.h:14
-msgid "label"
+msgid "Select Icon"
 msgstr ""
 
 #: ../data/merp.ui.h:15
-msgid "ID:"
+msgid "_OK"
 msgstr ""
 
 #: ../data/merp.ui.h:16
-msgid "Name:"
+msgid "From _File..."
 msgstr ""
 
 #: ../data/merp.ui.h:17
-msgid "Set _Icon..."
+msgid "Menu Properties"
 msgstr ""
 
 #: ../data/merp.ui.h:18
-msgid "Desktop File Properties"
+msgid "File:"
 msgstr ""
 
 #: ../data/merp.ui.h:19
-msgid "Category:"
+msgid "label"
 msgstr ""
 
 #: ../data/merp.ui.h:20
-msgid "Comment:"
+msgid "ID:"
 msgstr ""
 
 #: ../data/merp.ui.h:21
-msgid "Command:"
+msgid "Name:"
 msgstr ""
 
 #: ../data/merp.ui.h:22
-msgid "Working Directory:"
+msgid "Set _Icon..."
 msgstr ""
 
 #: ../data/merp.ui.h:23
-msgid "Startup Notification:"
+msgid "Desktop File Properties"
 msgstr ""
 
 #: ../data/merp.ui.h:24
+msgid "Category:"
+msgstr ""
+
+#: ../data/merp.ui.h:25
+msgid "Comment:"
+msgstr ""
+
+#: ../data/merp.ui.h:26
+msgid "Command:"
+msgstr ""
+
+#: ../data/merp.ui.h:27
+msgid "Working Directory:"
+msgstr ""
+
+#: ../data/merp.ui.h:28
+msgid "Startup Notification:"
+msgstr ""
+
+#: ../data/merp.ui.h:29
 msgid "Execute in Terminal:"
 msgstr ""
 
