@@ -319,7 +319,7 @@ static void reload_tree (MenuCache *mc, gpointer)
 
     // store the current selection
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
-    if (sel) selects = gtk_tree_selection_get_selected_rows (sel, &model);
+    selects = gtk_tree_selection_get_selected_rows (sel, &model);
 
     // store the current scroll
     tv_scroll = gtk_adjustment_get_value (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scroll)));
@@ -334,7 +334,7 @@ static void reload_tree (MenuCache *mc, gpointer)
     g_list_free_full (expands, (GDestroyNotify) gtk_tree_path_free);
 
     // restore the selection
-    if (sel && selects) gtk_tree_selection_select_path (sel, (GtkTreePath *) selects->data);
+    if (selects) gtk_tree_selection_select_path (sel, (GtkTreePath *) selects->data);
     g_list_free_full (selects, (GDestroyNotify) gtk_tree_path_free);
 
     // restore the scroll
@@ -686,6 +686,7 @@ static void handle_toggle_separator (GtkWidget *widget, gpointer user_data)
 {
     GtkTreePath *path;
     GtkTreeIter this, dest;
+    GtkTreeSelection *sel;
     MenuCacheType type;
     char *parent;
 
@@ -694,7 +695,17 @@ static void handle_toggle_separator (GtkWidget *widget, gpointer user_data)
 
     gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &this, path);
     gtk_tree_model_get (GTK_TREE_MODEL (store), &this, ITEM_TYPE, &type, -1);
-    if (type == MENU_CACHE_TYPE_SEP) gtk_tree_store_remove (store, &this);
+    if (type == MENU_CACHE_TYPE_SEP)
+    {
+        // select the previous line after the delete
+        sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
+        if (gtk_tree_selection_get_selected (sel, NULL, &dest))
+            gtk_tree_model_iter_previous (GTK_TREE_MODEL (store), &dest);
+
+        gtk_tree_store_remove (store, &this);
+
+        gtk_tree_selection_select_iter (sel, &dest);
+    }
     else
     {
         gtk_tree_store_insert_after (store, &dest, NULL, &this);
@@ -728,6 +739,8 @@ static void create_popup_menu (gdouble x, gdouble y)
     char *pathstr;
 
     gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (menu_tv), x, y, &path, NULL, NULL, NULL);
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, path);
+    gtk_tree_selection_select_iter (gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv)), &iter);
     pathstr = gtk_tree_path_to_string (path);
 
     if (path)
@@ -827,7 +840,7 @@ static gboolean handle_edit_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
     MenuCacheItem *cacheitem;
 
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
-    if (sel && gtk_tree_selection_get_selected (sel, NULL, &iter))
+    if (gtk_tree_selection_get_selected (sel, NULL, &iter))
     {
         gtk_tree_model_get (GTK_TREE_MODEL (store), &iter, ITEM_POINTER, &cacheitem, -1);
         handle_edit_item (NULL, cacheitem);
@@ -842,7 +855,7 @@ static gboolean handle_up_button (GtkWidget *wid, GdkEvent *ev, gpointer user_da
     GList *rows;
 
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
-    if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
+    if ((rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
     {
         path = (GtkTreePath *) rows->data;
         handle_item_up (NULL, path);
@@ -860,7 +873,7 @@ static gboolean handle_down_button (GtkWidget *wid, GdkEvent *ev, gpointer user_
     GList *rows;
 
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
-    if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
+    if ((rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
     {
         path = (GtkTreePath *) rows->data;
         handle_item_down (NULL, path);
@@ -878,7 +891,7 @@ static gboolean handle_sep_button (GtkWidget *wid, GdkEvent *ev, gpointer user_d
     GList *rows;
 
     sel = gtk_tree_view_get_selection (GTK_TREE_VIEW (menu_tv));
-    if (sel && (rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
+    if ((rows = gtk_tree_selection_get_selected_rows (sel, NULL)))
     {
         path = (GtkTreePath *) rows->data;
         handle_toggle_separator (NULL, path);
