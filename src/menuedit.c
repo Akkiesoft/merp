@@ -949,8 +949,8 @@ static void init_main_window (void)
     dialog_reload = DIALOG_NOT_OPEN;
 
     // read menu prefix and get system and local filenames
-    sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX"));
-    usermenufile = g_strdup_printf ("%s/menus/%sapplications.menu", g_get_user_config_dir (), getenv ("XDG_MENU_PREFIX"));
+    sysmenufile = g_strdup_printf ("/etc/xdg/menus/%sapplications.menu", getenv ("XDG_MENU_PREFIX") ? getenv ("XDG_MENU_PREFIX") : "lxde-");
+    usermenufile = g_strdup_printf ("%s/menus/%sapplications.menu", g_get_user_config_dir (), getenv ("XDG_MENU_PREFIX") ? getenv ("XDG_MENU_PREFIX") : "lxde-");
 
     init_dirs = check_dirs ();
 
@@ -998,7 +998,7 @@ static void init_main_window (void)
     gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (categories), CAT_NAME, GTK_SORT_ASCENDING);
 
     // read menu cache and load into tree store
-    menu_cache = menu_cache_lookup ("applications.menu+hidden");
+    menu_cache = menu_cache_lookup (getenv ("XDG_MENU_PREFIX") ? "applications.menu+hidden" : "lxde-applications.menu+hidden");
     id = menu_cache_add_reload_notify (menu_cache, reload_tree, NULL);
 
     load_menu (NULL, NULL);
