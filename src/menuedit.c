@@ -1107,7 +1107,6 @@ gboolean reboot_needed (void)
 void free_plugin (void)
 {
     g_object_unref (builder);
-    menu_cache_remove_reload_notify (menu_cache, id);
     menu_cache_unref (menu_cache);
 }
 
@@ -1158,7 +1157,6 @@ int main (int argc, char *argv[])
 
     gtk_widget_destroy (main_dlg);
 
-    menu_cache_remove_reload_notify (menu_cache, id);
     menu_cache_unref (menu_cache);
 
     return 0;
