@@ -133,6 +133,15 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     const char *name, *id, *icon_name;
     char *markup, *esc;
     gboolean vis;
+    GdkRGBA rgba;
+    GtkStyleContext *sc;
+    unsigned char r, g, b;
+
+    sc = gtk_widget_get_style_context (menu_tv);
+    gtk_style_context_get_color (sc, GTK_STATE_FLAG_INSENSITIVE, &rgba);
+    r = (unsigned char) (rgba.red * 255.0);
+    g = (unsigned char) (rgba.green * 255.0);
+    b = (unsigned char) (rgba.blue * 255.0);
 
     while (dir == NULL) dir = menu_cache_dup_root_dir (menu_cache);
     menu_cache_item_unref ((MenuCacheItem *) dir);
@@ -185,7 +194,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                         ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
                 vis = menu_cache_app_get_is_visible (MENU_CACHE_APP (item), SHOW_IN_LXDE);
                 esc = g_markup_escape_text (name, -1);
-                if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\">%s</span>", esc);
+                if (!vis) markup = g_strdup_printf ("<span foreground=\"#%02X%02X%02X\">%s</span>", r, g, b, esc);
                 else markup = g_strdup (esc);
                 g_free (esc);
                 break;
@@ -196,7 +205,7 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
                         ICON_SIZE, scale, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
                 vis = menu_cache_dir_is_visible (MENU_CACHE_DIR (item));
                 esc = g_markup_escape_text (name, -1);
-                if (!vis) markup = g_strdup_printf ("<span foreground=\"#B0B0B0\"><b>%s</b></span>", esc);
+                if (!vis) markup = g_strdup_printf ("<span foreground=\"#%02X%02X%02X\"><b>%s</b></span>", r, g, b, esc);
                 else markup = g_strdup_printf ("<b>%s</b>", esc);
                 g_free (esc);
                 break;
