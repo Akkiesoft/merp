@@ -1116,7 +1116,8 @@ gboolean reboot_needed (void)
 void free_plugin (void)
 {
     g_object_unref (builder);
-    menu_cache_unref (menu_cache);
+    menu_cache_remove_reload_notify (menu_cache, id);
+    // unref'ing the menu cache causes a segfault because its io thread isn't being closed...
 }
 
 void on_menu_edit (char *id)
@@ -1166,7 +1167,8 @@ int main (int argc, char *argv[])
 
     gtk_widget_destroy (main_dlg);
 
-    menu_cache_unref (menu_cache);
+    menu_cache_remove_reload_notify (menu_cache, id);
+    // unref'ing the menu cache causes a segfault because its io thread isn't being closed...
 
     return 0;
 }
