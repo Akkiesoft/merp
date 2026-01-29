@@ -1109,7 +1109,11 @@ GtkWidget *get_tab (int tab)
 
 gboolean reboot_needed (void)
 {
-    if (check_dirs () != init_dirs) return TRUE;
+    if (check_dirs () != init_dirs)
+    {
+        delete_cache ();
+        return TRUE;
+    }
     return FALSE;
 }
 
