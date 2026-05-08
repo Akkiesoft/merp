@@ -72,7 +72,7 @@ char *sysmenufile, *usermenufile;
 
 /* Globals for use when traversing XML */
 
-xmlNode *root_node, *cur_node;
+xmlNode *cur_node;
 
 /* Used to preserve the scroll of the tree view when redrawing */
 
@@ -381,11 +381,12 @@ static void write_menu_xml (char *id)
     xmlDocPtr xDoc = NULL;
     xmlXPathContextPtr xpathCtx;
     xmlXPathObjectPtr xpathObj;
-    xmlNodePtr node;
+    xmlNodePtr node, root_node;
     xmlChar *cont;
     char *str;
     int i;
 
+    xmlInitParser ();
     LIBXML_TEST_VERSION
 
     str = g_path_get_dirname (usermenufile);
@@ -393,7 +394,7 @@ static void write_menu_xml (char *id)
     g_free (str);
 
     // read in the user file if it exists; init if not
-    if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR)) xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
+    if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR)) xDoc = xmlReadFile (usermenufile, NULL, 0);
     if (!xDoc) xDoc = xmlNewDoc (XC ("1.0"));
     xpathCtx = xmlXPathNewContext (xDoc);
     root_node = xmlDocGetRootElement (xDoc);
@@ -410,7 +411,7 @@ static void write_menu_xml (char *id)
     if (strlen (id) == 0)
     {
         // delete any current top-level layout sections
-        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Layout']"), xpathCtx);
+        xpathObj = xmlXPathEvalExpression (XC ("/Menu/Layout"), xpathCtx);
         if (xpathObj->nodesetval)
         {
             for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
@@ -434,7 +435,7 @@ static void write_menu_xml (char *id)
     else
     {
         // delete any current menu layout sections matching the id
-        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[local-name()='Menu']/*[local-name()='Name']"), xpathCtx);
+        xpathObj = xmlXPathEvalExpression (XC ("/Menu/Menu/Name"), xpathCtx);
         if (xpathObj->nodesetval)
         {
             for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
@@ -465,6 +466,7 @@ static void write_menu_xml (char *id)
     }
 
     xmlSaveFormatFile (usermenufile, xDoc, 1);
+    xmlXPathFreeContext (xpathCtx);
     xmlFreeDoc (xDoc);
     xmlCleanupParser ();
 }
@@ -543,22 +545,23 @@ void remove_id_from_xml (const char *id)
     int i;
     gboolean changed = FALSE;
 
+    xmlInitParser ();
     LIBXML_TEST_VERSION
 
     // read in the user file
     if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR))
     {
-        xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
+        xDoc = xmlReadFile (usermenufile, NULL, 0);
         xpathCtx = xmlXPathNewContext (xDoc);
     }
     else
     {
         // no user file - read in the system file and manipulate it
-        xDoc = xmlReadFile (sysmenufile, NULL, XML_PARSE_NOBLANKS);
+        xDoc = xmlReadFile (sysmenufile, NULL, 0);
         xpathCtx = xmlXPathNewContext (xDoc);
 
         // remove all nodes other than Name and Layout from the top-level menu
-        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*[not(local-name()='Name') and not(local-name()='Layout')]"), xpathCtx);
+        xpathObj = xmlXPathEvalExpression (XC ("/Menu/*[not(name()='Name' or name()='Layout')]"), xpathCtx);
         if (xpathObj->nodesetval)
         {
             for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
@@ -571,7 +574,7 @@ void remove_id_from_xml (const char *id)
         xmlXPathFreeObject (xpathObj);
 
         // add the MergeFile node to the top-level menu
-        xpathObj = xmlXPathEvalExpression (XC ("/*[local-name()='Menu']/*"), xpathCtx);
+        xpathObj = xmlXPathEvalExpression (XC ("/Menu/*"), xpathCtx);
         if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr)
         {
             node = xmlNewNode (NULL, XC ("MergeFile"));
@@ -581,14 +584,14 @@ void remove_id_from_xml (const char *id)
         xmlXPathFreeObject (xpathObj);
 
         // remove all Menu nodes which do not contain a Layout node
-        xpathObj = xmlXPathEvalExpression (XC ("//*[local-name()='Menu']"), xpathCtx);
+        xpathObj = xmlXPathEvalExpression (XC ("//Menu"), xpathCtx);
         if (xpathObj->nodesetval)
         {
             for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
             {
                 node = xpathObj->nodesetval->nodeTab[i];
                 xmlXPathSetContextNode (node, xpathCtx);
-                xpathObj2 = xmlXPathEvalExpression (XC ("./*[local-name()='Layout']"), xpathCtx);
+                xpathObj2 = xmlXPathEvalExpression (XC ("./Layout"), xpathCtx);
                 if (xpathObj2->nodesetval && xpathObj2->nodesetval->nodeNr == 0)
                 {
                     xmlUnlinkNode (node);
@@ -603,7 +606,7 @@ void remove_id_from_xml (const char *id)
     }
 
     // delete any current menu layout sections matching the id
-    xpathObj = xmlXPathEvalExpression (XC ("//*[local-name()='Filename']"), xpathCtx);
+    xpathObj = xmlXPathEvalExpression (XC ("//Filename"), xpathCtx);
     if (xpathObj->nodesetval)
     {
         for (i = 0; i < xpathObj->nodesetval->nodeNr; i++)
@@ -630,6 +633,7 @@ void remove_id_from_xml (const char *id)
         xmlSaveFormatFile (usermenufile, xDoc, 1);
     }
 
+    xmlXPathFreeContext (xpathCtx);
     xmlFreeDoc (xDoc);
     xmlCleanupParser ();
 }
