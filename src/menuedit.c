@@ -394,7 +394,7 @@ static void write_menu_xml (char *id)
     g_free (str);
 
     // read in the user file if it exists; init if not
-    if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR)) xDoc = xmlReadFile (usermenufile, NULL, 0);
+    if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR)) xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
     if (!xDoc) xDoc = xmlNewDoc (XC ("1.0"));
     xpathCtx = xmlXPathNewContext (xDoc);
     root_node = xmlDocGetRootElement (xDoc);
@@ -551,7 +551,7 @@ void remove_id_from_xml (const char *id)
     // read in the user file
     if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR))
     {
-        xDoc = xmlReadFile (usermenufile, NULL, 0);
+        xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS0);
         xpathCtx = xmlXPathNewContext (xDoc);
     }
     else
