@@ -551,7 +551,7 @@ void remove_id_from_xml (const char *id)
     // read in the user file
     if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR))
     {
-        xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS0);
+        xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
         xpathCtx = xmlXPathNewContext (xDoc);
     }
     else
