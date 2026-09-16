@@ -115,9 +115,6 @@ static void handle_selection_changed (GtkTreeSelection *sel, gpointer user_data)
 static void init_main_window (void);
 static void gesture_pressed (GtkGestureLongPress *, gdouble x, gdouble y, gpointer);
 static void gesture_end (GtkGestureLongPress *, GdkEventSequence *, gpointer);
-#ifndef PLUGIN_NAME
-static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data);
-#endif
 
 /*----------------------------------------------------------------------------*/
 /* Loading menu cache                                                         */
@@ -1045,8 +1042,6 @@ static void gesture_end (GtkGestureLongPress *, GdkEventSequence *, gpointer)
 /* Plugin interface */
 /*----------------------------------------------------------------------------*/
 
-#ifdef PLUGIN_NAME
-
 void init_plugin (GtkWidget *parent)
 {
     setlocale (LC_ALL, "");
@@ -1096,13 +1091,14 @@ GtkWidget *get_tab (int tab)
 {
     GtkWidget *window, *plugin;
 
-    window = (GtkWidget *) gtk_builder_get_object (builder, "vbox1");
     switch (tab)
     {
         case 0 :
+            window = (GtkWidget *) gtk_builder_get_object (builder, "vbox1");
             plugin = (GtkWidget *) gtk_builder_get_object (builder, "hbox1");
             break;
         default :
+            window = NULL;
             plugin = NULL;
     }
 
@@ -1133,55 +1129,6 @@ void on_menu_edit (char *id)
     MenuCacheItem *item = menu_cache_find_item_by_id (menu_cache, id);
     if (item) show_properties_dialog (item);
 }
-
-#else
-
-static gboolean close_prog (GtkWidget *wid, GdkEvent *ev, gpointer user_data)
-{
-    gtk_main_quit ();
-    return TRUE;
-}
-
-/*----------------------------------------------------------------------------*/
-/* Main window                                                                */
-/*----------------------------------------------------------------------------*/
-
-int main (int argc, char *argv[])
-{
-    GtkWidget *close_btn;
-
-    // setup localisation
-    setlocale (LC_ALL, "");
-    bindtextdomain (GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR);
-    bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
-    textdomain (GETTEXT_PACKAGE);
-
-    // setup GTK
-    gtk_init (&argc, &argv);
-
-    // build the UI
-    builder = gtk_builder_new_from_file (PACKAGE_DATA_DIR "/ui/merp.ui");
-    main_dlg = (GtkWidget *) gtk_builder_get_object (builder, "main_window");
-    close_btn = (GtkWidget *) gtk_builder_get_object (builder, "button_ok");
-
-    g_signal_connect (main_dlg, "delete_event", G_CALLBACK (close_prog), NULL);
-    g_signal_connect (close_btn, "clicked", G_CALLBACK (close_prog), NULL);
-
-    init_main_window ();
-
-    gtk_widget_show_all (main_dlg);
-
-    gtk_main ();
-
-    gtk_widget_destroy (main_dlg);
-
-    menu_cache_remove_reload_notify (menu_cache, id);
-    // unref'ing the menu cache causes a segfault because its io thread isn't being closed...
-
-    return 0;
-}
-
-#endif
 
 /* End of file                                                                */
 /*----------------------------------------------------------------------------*/

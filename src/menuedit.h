@@ -25,6 +25,16 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ============================================================================*/
 
+/*----------------------------------------------------------------------------*/
+/* Typedefs and macros                                                        */
+/*----------------------------------------------------------------------------*/
+
+extern const char *dgetfixt (const char *domain, const char *msgctxid);
+#undef _
+#define _(a) dgettext(GETTEXT_PACKAGE,a)
+#undef C_
+#define C_(a,b) dgetfixt(GETTEXT_PACKAGE,a"\004"b)
+
 #define ITEM_NAME       0
 #define ITEM_ICON       1
 #define ITEM_ID         2
@@ -45,15 +55,22 @@ typedef enum
     DIALOG_OPEN_RELOAD
 } DIALOG_RELOAD_CHECK;
 
+/*----------------------------------------------------------------------------*/
+/* Global data                                                                */
+/*----------------------------------------------------------------------------*/
+
 extern GtkWidget *main_dlg;
 extern MenuCache *menu_cache;
 extern GtkTreeModelSort *categories;
 extern DIALOG_RELOAD_CHECK dialog_reload;
 
+/*----------------------------------------------------------------------------*/
+/* Prototypes                                                                 */
+/*----------------------------------------------------------------------------*/
+
 extern void show_properties_dialog (MenuCacheItem *item);
 extern void show_menu_dialog (MenuCacheItem *item);
 extern void remove_id_from_xml (const char *id);
-
 
 /* End of file                                                                */
 /*----------------------------------------------------------------------------*/
