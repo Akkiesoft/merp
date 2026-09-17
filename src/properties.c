@@ -144,7 +144,7 @@ static gboolean update_changed_entry (GKeyFile *kf, const char *param, GtkWidget
     gboolean update;
 
     // check for a localised version of this parameter in the key file
-    str = g_strdup (getenv ("LANG"));
+    str = g_strdup (getenv ("LANG") ? getenv ("LANG") : "C");
     if (strchr (str, '.')) *(strchr (str, '.')) = 0;
     lcparam = g_strdup_printf ("%s[%s]", param, str);
     if (!g_key_file_has_key (kf, "Desktop Entry", lcparam, NULL))

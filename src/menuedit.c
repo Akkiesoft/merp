@@ -137,6 +137,8 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
     GtkStyleContext *sc;
     unsigned char r, g, b;
 
+    if (menu_cache == NULL) return FALSE;
+
     sc = gtk_widget_get_style_context (menu_tv);
     gtk_style_context_get_color (sc, GTK_STATE_FLAG_INSENSITIVE, &rgba);
     r = (unsigned char) (rgba.red * 255.0);
@@ -247,13 +249,13 @@ static gboolean load_menu (MenuCacheDir *dir, GtkTreeIter *parent)
 static gboolean can_execute (MenuCacheItem *item)
 {
     GKeyFile *kf;
-    const char *filepath;
-    char *exec, *path;
+    char *filepath, *exec, *path;
     gboolean result = TRUE;
 
     kf = g_key_file_new ();
     filepath = menu_cache_item_get_file_path (item);
     g_key_file_load_from_file (kf, filepath, G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS, NULL);
+    g_free (filepath);
 
     if (g_key_file_has_key (kf, "Desktop Entry", "TryExec", NULL))
     {
@@ -552,12 +554,14 @@ void remove_id_from_xml (const char *id)
     if (g_file_test (usermenufile, G_FILE_TEST_IS_REGULAR))
     {
         xDoc = xmlReadFile (usermenufile, NULL, XML_PARSE_NOBLANKS);
+        if (!xDoc) xDoc = xmlNewDoc (XC ("1.0"));
         xpathCtx = xmlXPathNewContext (xDoc);
     }
     else
     {
         // no user file - read in the system file and manipulate it
         xDoc = xmlReadFile (sysmenufile, NULL, 0);
+        if (!xDoc) xDoc = xmlNewDoc (XC ("1.0"));
         xpathCtx = xmlXPathNewContext (xDoc);
 
         // remove all nodes other than Name and Layout from the top-level menu
