@@ -1,3 +1,9 @@
+merp (0.3) trixie; urgency=medium
+
+  * Misc robustness fixes
+
+ -- Simon Long <simon@raspberrypi.com>  Thu, 17 Sep 2026 17:21:44 +0100
+
 merp (0.2) trixie; urgency=medium
 
   * Tidly libxml code
