@@ -1,3 +1,9 @@
+merp (0.4) trixie; urgency=medium
+
+  * Remove standalone build
+
+ -- Simon Long <simon@raspberrypi.com>  Mon, 21 Sep 2026 11:56:14 +0100
+
 merp (0.3) trixie; urgency=medium
 
   * Misc robustness fixes
