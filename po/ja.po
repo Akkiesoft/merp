@@ -1,0 +1,180 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the merp package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: merp\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-21 01:04+0900\n"
+"PO-Revision-Date: 2026-09-22 03:31+0900\n"
+"Last-Translator: Akira Ouchi <akkiesoft@marokun.net>\n"
+"Language-Team: \n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.6\n"
+
+#: src/menuedit.c:243
+msgid "<Top Level>"
+msgstr "<最上位の階層>"
+
+#: src/menuedit.c:770
+msgid "Edit Item..."
+msgstr "アイテムの編集..."
+
+#: src/menuedit.c:775
+msgid "Move Up"
+msgstr "上に移動"
+
+#: src/menuedit.c:783
+msgid "Move Down"
+msgstr "下に移動"
+
+#: src/menuedit.c:791
+msgid "Remove Separator"
+msgstr "セパレーターを取り除く"
+
+#: src/menuedit.c:791
+msgid "Add Separator"
+msgstr "セパレーターを追加する"
+
+#: src/menuedit.c:1076
+msgctxt "tab"
+msgid "Main Menu"
+msgstr "メインメニュー"
+
+#: src/menuedit.c:1077
+msgid "No such tab"
+msgstr "そのようなタブはありません"
+
+#: src/properties.c:268
+msgid "Select Image File"
+msgstr "画像ファイルの選択"
+
+#: src/properties.c:269 data/merp.ui:212 data/merp.ui:477 data/merp.ui:981
+msgid "_Cancel"
+msgstr "キャンセル(_C)"
+
+#: src/properties.c:269
+msgid "_Select"
+msgstr "選択(_S)"
+
+#: data/merp.ui:8 data/merp.desktop.in:3
+msgid "Menu Editor"
+msgstr "メニューエディター"
+
+#: data/merp.ui:55
+msgid "_New Item..."
+msgstr "新規アイテム(_N)"
+
+#: data/merp.ui:59
+msgid "Create new menu item"
+msgstr "新しいメニューアイテムを作成します"
+
+#: data/merp.ui:70
+msgid "_Edit Item..."
+msgstr "アイテムの編集(_E)"
+
+#: data/merp.ui:74
+msgid "Edit menu item or directory"
+msgstr "メニューのアイテムまたはディレクトリーを編集します"
+
+#: data/merp.ui:85
+msgid "Move _Up"
+msgstr "上に移動(_U)"
+
+#: data/merp.ui:89
+msgid "Move menu item or directory upwards"
+msgstr "メニューのアイテムまたはディレクトリーを上に移動します"
+
+#: data/merp.ui:100
+msgid "Move _Down"
+msgstr "下に移動(_D)"
+
+#: data/merp.ui:104
+msgid "Move menu item or directory downwards"
+msgstr "メニューのアイテムまたはディレクトリーを下に移動します"
+
+#: data/merp.ui:115
+msgid "_Separator"
+msgstr "セパレーター(_S)"
+
+#: data/merp.ui:119
+msgid "Add or remove separator"
+msgstr "セパレーターを追加または除去します"
+
+#: data/merp.ui:149
+msgid "Close"
+msgstr "閉じる"
+
+#: data/merp.ui:173
+msgid "Select Icon"
+msgstr "アイコンの選択"
+
+#: data/merp.ui:226 data/merp.ui:491 data/merp.ui:995
+msgid "_OK"
+msgstr "_OK"
+
+#: data/merp.ui:240
+msgid "From _File..."
+msgstr "ファイルから選択(_F)..."
+
+#: data/merp.ui:266
+msgid "Menu Properties"
+msgstr "メニューのプロパティ"
+
+#: data/merp.ui:293 data/merp.ui:551
+msgid "File:"
+msgstr "ファイル:"
+
+#: data/merp.ui:306 data/merp.ui:378 data/merp.ui:564 data/merp.ui:642
+msgid "label"
+msgstr "ラベル"
+
+#: data/merp.ui:365 data/merp.ui:624
+msgid "ID:"
+msgstr "ID:"
+
+#: data/merp.ui:403 data/merp.ui:735
+msgid "Name:"
+msgstr "名前:"
+
+#: data/merp.ui:462 data/merp.ui:966
+msgid "Set _Icon..."
+msgstr "アイコンの設定(_I)..."
+
+#: data/merp.ui:524
+msgid "Desktop File Properties"
+msgstr "デスクトップファイルのプロパティ"
+
+#: data/merp.ui:685
+msgid "Category:"
+msgstr "カテゴリー:"
+
+#: data/merp.ui:773
+msgid "Comment:"
+msgstr "コメント:"
+
+#: data/merp.ui:811
+msgid "Command:"
+msgstr "コマンド:"
+
+#: data/merp.ui:849
+msgid "Working Directory:"
+msgstr "作業ディレクトリー:"
+
+#: data/merp.ui:888
+msgid "Startup Notification:"
+msgstr "起動通知:"
+
+#: data/merp.ui:924
+msgid "Execute in Terminal:"
+msgstr "ターミナルで実行する:"
+
+#: data/merp.desktop.in:4
+msgid "Edit the main menu"
+msgstr "メインメニューを編集します"
