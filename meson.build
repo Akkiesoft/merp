@@ -1,5 +1,7 @@
 project ('merp','c')
 
+build_standalone = false
+build_plugin = true
 plugin_name = 'rpcc_' + meson.project_name()
 
 share_dir = join_paths(get_option('prefix'), 'share')
